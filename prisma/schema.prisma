@@ -56,10 +56,13 @@ model User {
   image         String?
   role          Role      @default(STUDENT)
   collegeId     String?
+  usn           String?   @unique
+  departmentId  String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  college       College?  @relation(fields: [collegeId], references: [id])
+  college       College?    @relation(fields: [collegeId], references: [id])
+  department    Department? @relation(fields: [departmentId], references: [id])
   sessions      Session[]
   accounts      Account[]
   testAttempts  TestAttempt[]
@@ -117,6 +120,9 @@ model College {
   contactEmail String?
   contactPhone String?
   isActive     Boolean  @default(true)
+  usnFormat     String?
+  usnDeptStart  Int?
+  usnDeptLength Int?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -236,6 +242,7 @@ model Department {
   updatedAt DateTime @updatedAt
 
   college College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  users   User[]
 
   @@unique([collegeId, name])
 }

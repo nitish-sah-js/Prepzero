@@ -26,7 +26,7 @@ docker compose up -d   # Start Judge0 services (server, workers, postgres, redis
 
 ### Tech Stack
 - **Next.js 16** with App Router, React 19, TypeScript 5
-- **Prisma 7** with PostgreSQL (Neon cloud DB)
+- **Prisma 7** with PostgreSQL (Neon cloud DB) via `PrismaPg` driver adapter (not the default Prisma engine)
 - **Better Auth** for session-based authentication with email/password
 - **shadcn/ui** (new-york style) + Tailwind CSS 4 + Radix UI
 - **Judge0** (Docker) for sandboxed code execution (Python, Java, C, C++)
@@ -49,10 +49,16 @@ docker compose up -d   # Start Judge0 services (server, workers, postgres, redis
 - `src/hooks/use-proctoring.ts` — Client-side proctoring hook tracking tab switches, fullscreen exits, copy/paste, right-click, keyboard shortcuts
 
 ### Database Schema
-Defined in `prisma/schema.prisma`. Prisma client output goes to `src/generated/prisma`. Key models: User, College, PlacementDrive, Test, Question (supports SINGLE_SELECT, MULTI_SELECT, CODING), TestAttempt (tracks proctoring violations), Answer, TestCase. Import types from `@/generated/prisma`.
+Defined in `prisma/schema.prisma`. Prisma client output goes to `src/generated/prisma`. Key models: User, College, Department, PlacementDrive, Test, Question, TestAttempt, Answer, TestCase. Import types from `@/generated/prisma`.
+
+Key enums: `Role` (SUPER_ADMIN, COLLEGE_ADMIN, STUDENT), `QuestionType` (SINGLE_SELECT, MULTI_SELECT, CODING), `DriveStatus` (DRAFT, UPCOMING, ACTIVE, COMPLETED, CANCELLED), `TestStatus` (DRAFT, PUBLISHED, CLOSED), `AttemptStatus` (IN_PROGRESS, SUBMITTED, TIMED_OUT), `CodingLanguage` (PYTHON, JAVA, C, CPP).
+
+Question `options` and `correctOptionIds` are JSON fields. `options` stores `Array<{id: string, text: string}>`, `correctOptionIds` stores `string[]`. Answer `selectedOptionIds` follows the same `string[]` pattern. TestAttempt has a `@@unique([testId, studentId])` constraint (one attempt per student per test).
 
 ### Authentication & Authorization
-- Middleware checks session cookie on all non-public routes
+- Middleware checks `better-auth.session_token` (dev) or `__Secure-better-auth.session_token` (prod) cookie on all non-public routes
+- Public paths: `/`, `/login`, `/register`, `/register/student`, `/api/auth/**`
+- Dashboard layouts enforce roles at the layout level via `requireRole()` — unauthorized users are redirected to `/login`
 - Role-based access: API routes filter by user role and `collegeId`
 - Role redirects: SUPER_ADMIN → `/admin`, COLLEGE_ADMIN → `/college`, STUDENT → `/student`
 
@@ -66,3 +72,12 @@ Defined in `prisma/schema.prisma`. Prisma client output goes to `src/generated/p
 
 ### Environment Variables
 Required in `.env`: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `JUDGE0_API_URL` (default `http://localhost:2358` for local Docker). Optional: `JUDGE0_API_KEY` (only for RapidAPI-hosted Judge0).
+
+### Seed Data
+`npm run db:seed` creates test accounts for development:
+- Super Admin: `admin@prepzero.com` / `admin123456`
+- College Admin: `college@demo.com` / `college123456`
+- Student: `student@demo.com` / `student123456`
+- College code: `DEMO2026`
+
+Also creates a sample placement drive, test, and questions.
