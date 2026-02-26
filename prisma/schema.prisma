@@ -58,6 +58,7 @@ model User {
   collegeId     String?
   usn           String?   @unique
   departmentId  String?
+  semester      Int?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

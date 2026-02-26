@@ -41,6 +41,7 @@ const studentNav: NavItem[] = [
   { title: "Drives", href: "/student/drives", icon: Briefcase },
   { title: "Tests", href: "/student/tests", icon: ClipboardList },
   { title: "Results", href: "/student/results", icon: BarChart3 },
+  { title: "Settings", href: "/student/settings", icon: Settings },
 ];
 
 function getNavItems(role: string): NavItem[] {
