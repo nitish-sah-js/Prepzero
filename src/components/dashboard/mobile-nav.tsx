@@ -35,6 +35,7 @@ const navMap: Record<string, NavItem[]> = {
     { title: "Dashboard", href: "/college", icon: LayoutDashboard },
     { title: "Drives", href: "/college/drives", icon: Briefcase },
     { title: "Students", href: "/college/students", icon: GraduationCap },
+    { title: "Departments", href: "/college/departments", icon: Building2 },
     { title: "Settings", href: "/college/settings", icon: Settings },
   ],
   STUDENT: [
@@ -42,6 +43,7 @@ const navMap: Record<string, NavItem[]> = {
     { title: "Drives", href: "/student/drives", icon: Briefcase },
     { title: "Tests", href: "/student/tests", icon: ClipboardList },
     { title: "Results", href: "/student/results", icon: BarChart3 },
+    { title: "Settings", href: "/student/settings", icon: Settings },
   ],
 };
 

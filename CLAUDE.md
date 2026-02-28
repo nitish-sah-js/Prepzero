@@ -15,7 +15,10 @@ npm run lint         # ESLint
 npm run db:push      # Sync Prisma schema to database
 npm run db:generate  # Regenerate Prisma client (after schema changes)
 npm run db:seed      # Seed database with test data (tsx prisma/seed.ts)
+npm run db:create-admin  # Create super admin: tsx prisma/create-admin.ts <name> <email> <password>
 ```
+
+No test framework is configured. There are utility scripts in `scripts/` (add-student.ts, fetch-data.ts) run via `tsx scripts/<name>.ts`.
 
 Judge0 (code execution engine for coding questions):
 ```bash
@@ -41,10 +44,11 @@ docker compose up -d   # Start Judge0 services (server, workers, postgres, redis
 
 ### Key Modules
 - `src/lib/auth.ts` — Better Auth config with Prisma adapter; extends User with `role` and `collegeId` fields
-- `src/lib/auth-client.ts` — Client-side auth helpers
+- `src/lib/auth-client.ts` — Client-side auth helpers (`signIn`, `signUp`, `signOut`, `useSession`)
 - `src/lib/auth-guard.ts` — Server-side helpers: `getSession()`, `requireAuth()`, `requireRole(role)`, `getRoleRedirect(role)`
-- `src/lib/judge0.ts` — Code execution: `executeCode()` for single runs, `executeBatch()` for test case validation with polling
-- `src/lib/prisma.ts` — Prisma client singleton
+- `src/lib/judge0.ts` — Code execution: `executeCode()` for single runs, `executeBatch()` for test case validation with polling. Language IDs: PYTHON→71, JAVA→62, C→50, CPP→54
+- `src/lib/prisma.ts` — Prisma client singleton using `PrismaPg` driver adapter (not the default Prisma engine)
+- `src/lib/csv-parser.ts` / `src/lib/student-csv-parser.ts` — CSV parsing for bulk student import with USN-based department extraction
 - `src/middleware.ts` — Route protection; checks `better-auth.session_token` cookie, redirects unauthenticated users to `/login`
 - `src/hooks/use-proctoring.ts` — Client-side proctoring hook tracking tab switches, fullscreen exits, copy/paste, right-click, keyboard shortcuts
 
@@ -62,6 +66,17 @@ Question `options` and `correctOptionIds` are JSON fields. `options` stores `Arr
 - Role-based access: API routes filter by user role and `collegeId`
 - Role redirects: SUPER_ADMIN → `/admin`, COLLEGE_ADMIN → `/college`, STUDENT → `/student`
 
+### API Route Patterns
+- Next.js 16 dynamic route params are `Promise<>` — must `await params` before using:
+  ```typescript
+  type RouteParams = { params: Promise<{ testId: string }> };
+  export async function GET(req: NextRequest, { params }: RouteParams) {
+    const { testId } = await params;
+  }
+  ```
+- API routes use role-based filtering: STUDENT sees own data, COLLEGE_ADMIN sees their college's data, SUPER_ADMIN sees all
+- Request bodies are validated with Zod `schema.safeParse(body)`
+
 ### Conventions
 - Path alias: `@/*` maps to `src/*`
 - Pages default to React Server Components; use `"use client"` only when needed
@@ -69,6 +84,8 @@ Question `options` and `correctOptionIds` are JSON fields. `options` stores `Arr
 - Forms use React Hook Form + Zod for validation
 - shadcn/ui components live in `src/components/ui/`; add new ones via `npx shadcn@latest add <component>`
 - `src/components/test/test-interface.tsx` is the core test-taking component (proctoring, timer, question rendering, code editor, submission)
+- Toast notifications use `sonner` (`toast.success()`, `toast.error()`)
+- IDs generated with `nanoid`; dates handled with `date-fns`
 
 ### Environment Variables
 Required in `.env`: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `JUDGE0_API_URL` (default `http://localhost:2358` for local Docker). Optional: `JUDGE0_API_KEY` (only for RapidAPI-hosted Judge0).
