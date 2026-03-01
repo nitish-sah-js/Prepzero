@@ -10,14 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import {
   ClipboardList,
   CheckCircle,
@@ -25,7 +18,6 @@ import {
   Clock,
   ArrowRight,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 
 export default async function StudentDashboardPage() {
   const session = await getSession();
@@ -43,10 +35,8 @@ export default async function StudentDashboardPage() {
     redirect("/login");
   }
 
-  // Fetch stats and data in parallel
   const [availableTests, completedAttempts, allAttempts, upcomingTests, recentResults] =
     await Promise.all([
-      // Count of published tests from student's college not yet attempted
       prisma.test.count({
         where: {
           status: "PUBLISHED",
@@ -56,14 +46,12 @@ export default async function StudentDashboardPage() {
           },
         },
       }),
-      // Count of completed attempts
       prisma.testAttempt.count({
         where: {
           studentId: user.id,
           status: { in: ["SUBMITTED", "TIMED_OUT"] },
         },
       }),
-      // All submitted attempts for average score
       prisma.testAttempt.findMany({
         where: {
           studentId: user.id,
@@ -72,7 +60,6 @@ export default async function StudentDashboardPage() {
         },
         select: { percentage: true },
       }),
-      // Upcoming tests (published, not attempted)
       prisma.test.findMany({
         where: {
           status: "PUBLISHED",
@@ -90,7 +77,6 @@ export default async function StudentDashboardPage() {
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
-      // Recent results
       prisma.testAttempt.findMany({
         where: {
           studentId: user.id,
@@ -124,12 +110,16 @@ export default async function StudentDashboardPage() {
       value: availableTests,
       icon: ClipboardList,
       description: "Tests waiting for you",
+      iconColor: "text-blue-600 dark:text-blue-400",
+      iconBg: "bg-blue-50 dark:bg-blue-950/50",
     },
     {
       title: "Completed Tests",
       value: completedAttempts,
       icon: CheckCircle,
       description: "Tests you have finished",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
+      iconBg: "bg-emerald-50 dark:bg-emerald-950/50",
     },
     {
       title: "Average Score",
@@ -139,16 +129,18 @@ export default async function StudentDashboardPage() {
         allAttempts.length > 0
           ? `Across ${allAttempts.length} test${allAttempts.length !== 1 ? "s" : ""}`
           : "No tests completed yet",
+      iconColor: "text-amber-600 dark:text-amber-400",
+      iconBg: "bg-amber-50 dark:bg-amber-950/50",
     },
   ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-balance">
-          Welcome back, {user.name.split(" ")[0]}
+        <h1 className="text-3xl font-bold tracking-tight">
+          Welcome back, {user.name.split(" ")[0]}!
         </h1>
-        <p className="text-muted-foreground">
+        <p className="mt-1 text-muted-foreground">
           Here is an overview of your test activity.
         </p>
       </div>
@@ -156,16 +148,26 @@ export default async function StudentDashboardPage() {
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">
+          <Card
+            key={stat.title}
+            className="shadow-sm transition-shadow duration-200 hover:shadow-md"
+          >
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 {stat.title}
               </CardTitle>
-              <stat.icon className="size-5 text-muted-foreground" />
+              <div className={`shrink-0 rounded-lg p-2 ${stat.iconBg}`}>
+                <stat.icon
+                  className={`size-4 ${stat.iconColor}`}
+                  aria-hidden="true"
+                />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tabular-nums">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">
+              <div className="text-3xl font-bold tracking-tight tabular-nums">
+                {stat.value}
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
                 {stat.description}
               </p>
             </CardContent>
@@ -178,15 +180,15 @@ export default async function StudentDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Upcoming Tests</CardTitle>
-            <Link href="/student/tests">
-              <Button variant="ghost" size="sm">
-                View All <ArrowRight className="ml-1 size-4" />
-              </Button>
-            </Link>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/student/tests">
+                View All <ArrowRight className="ml-1 size-4" aria-hidden="true" />
+              </Link>
+            </Button>
           </CardHeader>
           <CardContent>
             {upcomingTests.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
+              <p className="py-6 text-center text-sm text-muted-foreground">
                 No tests available right now.
               </p>
             ) : (
@@ -196,28 +198,37 @@ export default async function StudentDashboardPage() {
                     key={test.id}
                     className="flex items-center justify-between rounded-lg border p-3"
                   >
-                    <div className="space-y-1 min-w-0">
-                      <p className="text-sm font-medium leading-none">
+                    <div className="min-w-0 space-y-1">
+                      <p className="truncate text-sm font-medium leading-none">
                         {test.title}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="truncate text-xs text-muted-foreground">
                         {test.drive.title}
                         {test.drive.companyName
-                          ? ` - ${test.drive.companyName}`
+                          ? `\u00a0\u2013\u00a0${test.drive.companyName}`
                           : ""}
                       </p>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Clock className="size-3" />
-                        {test.durationMinutes} min
-                        <span className="mx-1">|</span>
-                        {test._count.questions} questions
-                        <span className="mx-1">|</span>
-                        {test.totalMarks} marks
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Clock className="size-3" aria-hidden="true" />
+                        <span>{test.durationMinutes}&nbsp;min</span>
+                        <span aria-hidden="true">&middot;</span>
+                        <span>{test._count.questions}&nbsp;questions</span>
+                        <span aria-hidden="true">&middot;</span>
+                        <span>{test.totalMarks}&nbsp;marks</span>
                       </div>
                     </div>
-                    <Link href={`/test/${test.id}/attempt`}>
-                      <Button size="sm">Start</Button>
-                    </Link>
+                    <Button
+                      size="sm"
+                      asChild
+                      className="ml-3 shrink-0"
+                    >
+                      <Link
+                        href={`/test/${test.id}/attempt`}
+                        aria-label={`Start test: ${test.title}`}
+                      >
+                        Start
+                      </Link>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -229,55 +240,85 @@ export default async function StudentDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Recent Results</CardTitle>
-            <Link href="/student/results">
-              <Button variant="ghost" size="sm">
-                View All <ArrowRight className="ml-1 size-4" />
-              </Button>
-            </Link>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/student/results">
+                View All <ArrowRight className="ml-1 size-4" aria-hidden="true" />
+              </Link>
+            </Button>
           </CardHeader>
           <CardContent>
             {recentResults.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
+              <p className="py-6 text-center text-sm text-muted-foreground">
                 No results yet. Take a test to see your scores here.
               </p>
             ) : (
               <div className="space-y-3">
-                {recentResults.map((attempt) => (
-                  <Link
-                    key={attempt.id}
-                    href={`/student/results/${attempt.id}`}
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="space-y-1 min-w-0">
-                      <p className="text-sm font-medium leading-none">
-                        {attempt.test.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {attempt.test.drive.title}
-                        {attempt.test.drive.companyName
-                          ? ` - ${attempt.test.drive.companyName}`
-                          : ""}
-                      </p>
-                      {attempt.submittedAt && (
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(attempt.submittedAt, {
-                            addSuffix: true,
-                          })}
+                {recentResults.map((attempt) => {
+                  const pct =
+                    attempt.percentage !== null
+                      ? Math.round(attempt.percentage)
+                      : null;
+                  const scoreColor =
+                    pct === null
+                      ? "text-muted-foreground"
+                      : pct >= 75
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : pct >= 50
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-red-600 dark:text-red-400";
+
+                  return (
+                    <Link
+                      key={attempt.id}
+                      href={`/student/results/${attempt.id}`}
+                      className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <p className="truncate text-sm font-medium leading-none">
+                          {attempt.test.title}
                         </p>
-                      )}
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-bold tabular-nums">
-                        {attempt.percentage !== null
-                          ? `${Math.round(attempt.percentage)}%`
-                          : "N/A"}
+                        <p className="truncate text-xs text-muted-foreground">
+                          {attempt.test.drive.title}
+                          {attempt.test.drive.companyName
+                            ? `\u00a0\u2013\u00a0${attempt.test.drive.companyName}`
+                            : ""}
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                          {attempt.status === "TIMED_OUT" && (
+                            <Badge
+                              variant="outline"
+                              className="h-4 px-1 py-0 text-[10px] text-amber-600 border-amber-300"
+                            >
+                              Timed out
+                            </Badge>
+                          )}
+                          {attempt.submittedAt && (
+                            <p className="text-xs text-muted-foreground">
+                              {new Intl.DateTimeFormat(undefined, {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              }).format(new Date(attempt.submittedAt))}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground tabular-nums">
-                        {attempt.score ?? 0}/{attempt.test.totalMarks}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
+                      <div className="ml-3 shrink-0 text-right">
+                        <div
+                          className={cn(
+                            "text-lg font-bold tabular-nums",
+                            scoreColor
+                          )}
+                        >
+                          {pct !== null ? `${pct}%` : "N/A"}
+                        </div>
+                        <p className="text-xs text-muted-foreground tabular-nums">
+                          {attempt.score ?? 0}/{attempt.test.totalMarks}
+                        </p>
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </CardContent>

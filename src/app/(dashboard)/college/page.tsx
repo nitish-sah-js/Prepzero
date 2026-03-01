@@ -6,7 +6,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Briefcase, ClipboardList, Users, CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Briefcase,
+  ClipboardList,
+  Users,
+  CheckCircle,
+  Plus,
+  Upload,
+  ArrowRight,
+} from "lucide-react";
+import Link from "next/link";
 
 export default async function CollegeDashboardPage() {
   const session = await getSession();
@@ -33,39 +43,47 @@ export default async function CollegeDashboardPage() {
       value: driveCount,
       icon: Briefcase,
       description: "Placement drives created",
+      iconColor: "text-blue-600 dark:text-blue-400",
+      iconBg: "bg-blue-50 dark:bg-blue-950/50",
     },
     {
       title: "Total Tests",
       value: testCount,
       icon: ClipboardList,
       description: "Tests across all drives",
+      iconColor: "text-violet-600 dark:text-violet-400",
+      iconBg: "bg-violet-50 dark:bg-violet-950/50",
     },
     {
       title: "Total Students",
       value: studentCount,
       icon: Users,
       description: "Registered students",
+      iconColor: "text-amber-600 dark:text-amber-400",
+      iconBg: "bg-amber-50 dark:bg-amber-950/50",
     },
     {
       title: "Active Tests",
       value: activeTestCount,
       icon: CheckCircle,
       description: "Published and available",
+      iconColor: "text-emerald-600 dark:text-emerald-400",
+      iconBg: "bg-emerald-50 dark:bg-emerald-950/50",
     },
   ];
 
   return (
     <div className="space-y-8">
-      <div className="space-y-1">
-        <h1 className="text-3xl font-bold tracking-tight text-balance">
-          Welcome back, {user.name.split(" ")[0]}
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">
+          Welcome back, {user.name.split(" ")[0]}!
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="mt-1 text-sm text-muted-foreground">
           Overview of your college placement activities.
         </p>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card
             key={stat.title}
@@ -75,8 +93,11 @@ export default async function CollegeDashboardPage() {
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {stat.title}
               </CardTitle>
-              <div className="shrink-0 rounded-lg bg-muted p-2">
-                <stat.icon className="size-4 text-muted-foreground" aria-hidden="true" />
+              <div className={`shrink-0 rounded-lg p-2 ${stat.iconBg}`}>
+                <stat.icon
+                  className={`size-4 ${stat.iconColor}`}
+                  aria-hidden="true"
+                />
               </div>
             </CardHeader>
             <CardContent>
@@ -89,6 +110,31 @@ export default async function CollegeDashboardPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div>
+        <h2 className="mb-4 text-base font-semibold">Quick Actions</h2>
+        <div className="flex flex-wrap gap-3">
+          <Button asChild>
+            <Link href="/college/drives/new">
+              <Plus className="mr-2 size-4" aria-hidden="true" />
+              Create Drive
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/college/students/upload">
+              <Upload className="mr-2 size-4" aria-hidden="true" />
+              Import Students
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/college/drives">
+              <Briefcase className="mr-2 size-4" aria-hidden="true" />
+              View Drives
+              <ArrowRight className="ml-2 size-4" aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
       </div>
     </div>
   );

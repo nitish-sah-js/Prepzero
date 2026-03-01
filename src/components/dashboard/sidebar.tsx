@@ -9,7 +9,7 @@ import {
   Users,
   GraduationCap,
   ClipboardList,
-  FileText,
+  Zap,
   BarChart3,
   Settings,
   Briefcase,
@@ -61,18 +61,27 @@ function getNavItems(role: string): NavItem[] {
   }
 }
 
+const roleLabel: Record<string, string> = {
+  SUPER_ADMIN: "Super Admin",
+  COLLEGE_ADMIN: "College Admin",
+  STUDENT: "Student",
+};
+
 export function Sidebar({ role }: { role: string }) {
   const pathname = usePathname();
   const navItems = getNavItems(role);
 
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r bg-muted/40">
+    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 border-r bg-card">
       <div className="flex items-center h-16 px-6 border-b">
-        <Link href="/" className="flex items-center gap-2">
-          <FileText className="size-6 text-primary" aria-hidden="true" />
-          <span className="text-lg font-bold">PrepZero</span>
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-primary">
+            <Zap className="size-4 text-primary-foreground" aria-hidden="true" />
+          </div>
+          <span className="text-lg font-bold tracking-tight">PrepZero</span>
         </Link>
       </div>
+
       <ScrollArea className="flex-1 py-4">
         <nav className="px-3 space-y-0.5" aria-label="Main navigation">
           {navItems.map((item) => {
@@ -87,20 +96,32 @@ export function Sidebar({ role }: { role: string }) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
                   isActive
                     ? "bg-primary/10 text-primary font-semibold"
-                    : "font-medium text-muted-foreground hover:bg-background hover:text-foreground"
+                    : "font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
                 aria-current={isActive ? "page" : undefined}
               >
-                <item.icon className="size-4 shrink-0" aria-hidden="true" />
+                <item.icon
+                  className={cn("size-4 shrink-0", isActive && "text-primary")}
+                  aria-hidden="true"
+                />
                 {item.title}
               </Link>
             );
           })}
         </nav>
       </ScrollArea>
+
+      <div className="border-t p-4">
+        <div className="rounded-lg bg-muted px-3 py-2.5">
+          <p className="text-[11px] text-muted-foreground">Signed in as</p>
+          <p className="text-xs font-semibold mt-0.5">
+            {roleLabel[role] ?? role}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

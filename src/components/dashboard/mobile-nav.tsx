@@ -11,11 +11,12 @@ import {
   Users,
   GraduationCap,
   ClipboardList,
-  FileText,
+  Zap,
   BarChart3,
   Settings,
   Menu,
   Briefcase,
+  BookOpen,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -29,12 +30,14 @@ const navMap: Record<string, NavItem[]> = {
   SUPER_ADMIN: [
     { title: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { title: "Colleges", href: "/admin/colleges", icon: Building2 },
+    { title: "Library", href: "/admin/library", icon: BookOpen },
     { title: "Users", href: "/admin/users", icon: Users },
     { title: "Settings", href: "/admin/settings", icon: Settings },
   ],
   COLLEGE_ADMIN: [
     { title: "Dashboard", href: "/college", icon: LayoutDashboard },
     { title: "Drives", href: "/college/drives", icon: Briefcase },
+    { title: "Library", href: "/college/library", icon: BookOpen },
     { title: "Students", href: "/college/students", icon: GraduationCap },
     { title: "Departments", href: "/college/departments", icon: Building2 },
     { title: "Settings", href: "/college/settings", icon: Settings },
@@ -63,9 +66,11 @@ export function MobileNav({ role }: { role: string }) {
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-0">
         <div className="flex items-center h-16 px-6 border-b">
-          <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-            <FileText className="size-6 text-primary" aria-hidden="true" />
-            <span className="text-lg font-bold">PrepZero</span>
+          <Link href="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
+            <div className="flex size-8 items-center justify-center rounded-lg bg-primary">
+              <Zap className="size-4 text-primary-foreground" aria-hidden="true" />
+            </div>
+            <span className="text-lg font-bold tracking-tight">PrepZero</span>
           </Link>
         </div>
         <nav className="px-3 py-4 space-y-1">
