@@ -584,7 +584,7 @@ export default function TestDetailPage() {
               </Select>
             </div>
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-wrap gap-3 pt-4">
               <Button type="submit" disabled={isSaving}>
                 {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
                 Save Changes
@@ -624,7 +624,9 @@ export default function TestDetailPage() {
                     }
                   }}
                 >
-                  {isTogglingResults && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  {isTogglingResults && (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  )}
                   <Eye />
                   {showResults ? "Hide Results" : "Release Results"}
                 </Button>

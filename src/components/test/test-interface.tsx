@@ -541,13 +541,13 @@ export function TestInterface({ testId }: TestInterfaceProps) {
           return;
         }
 
-        const result = await res.json();
+        await res.json();
         setSubmitted(true);
         setShowSubmitDialog(false);
 
-        // Short delay then redirect to results
+        // Short delay then redirect to dashboard
         setTimeout(() => {
-          router.push(`/student/results/${result.id}`);
+          router.push("/student");
         }, 1500);
       } catch {
         setError("Failed to submit. Please try again.");
@@ -651,7 +651,7 @@ export function TestInterface({ testId }: TestInterfaceProps) {
             <p className="text-muted-foreground text-sm">
               {autoSubmittedByViolation
                 ? "You exceeded the maximum allowed violations. Your answers have been recorded."
-                : "Your answers have been recorded. Redirecting to results..."}
+                : "Your answers have been recorded. Redirecting to dashboard..."}
             </p>
             <Loader2 className="mx-auto size-5 animate-spin text-muted-foreground" />
           </CardContent>

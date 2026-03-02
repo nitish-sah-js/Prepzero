@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, TestStatus, ResultVisibility } from "@/generated/prisma/client";
 import { getSession } from "@/lib/auth-guard";
 import { isStudentEligible } from "@/lib/test-eligibility";
-import { TestStatus, ResultVisibility } from "@/generated/prisma/client";
 
 const updateTestSchema = z.object({
   title: z.string().min(1).optional(),
@@ -158,10 +157,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json(test);
   } catch (error) {
     console.error("PUT /api/tests/[testId] error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
