@@ -31,6 +31,7 @@ export default function NewTestPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState("DRAFT");
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
+  const [resultVisibility, setResultVisibility] = useState("AFTER_SUBMISSION");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -47,6 +48,7 @@ export default function NewTestPage() {
       passingMarks: parseInt(formData.get("passingMarks") as string) || 0,
       shuffleQuestions,
       status,
+      resultVisibility,
     };
 
     try {
@@ -170,6 +172,19 @@ export default function NewTestPage() {
                 <SelectContent>
                   <SelectItem value="DRAFT">Draft</SelectItem>
                   <SelectItem value="PUBLISHED">Published</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="resultVisibility">Result Visibility</Label>
+              <Select value={resultVisibility} onValueChange={setResultVisibility}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="AFTER_SUBMISSION">Immediately after submission</SelectItem>
+                  <SelectItem value="MANUAL_RELEASE">Manually released by admin</SelectItem>
                 </SelectContent>
               </Select>
             </div>

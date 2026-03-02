@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { getSession } from "@/lib/auth-guard";
 import { isStudentEligible } from "@/lib/test-eligibility";
-import { TestStatus } from "@/generated/prisma/client";
+import { TestStatus, ResultVisibility } from "@/generated/prisma/client";
 
 const updateTestSchema = z.object({
   title: z.string().min(1).optional(),
@@ -19,6 +19,8 @@ const updateTestSchema = z.object({
   allowedDepartmentIds: z.array(z.string()).nullable().optional(),
   allowedSemesters: z.array(z.number().int().min(1).max(8)).nullable().optional(),
   allowedStudentIds: z.array(z.string()).nullable().optional(),
+  resultVisibility: z.nativeEnum(ResultVisibility).optional(),
+  showResults: z.boolean().optional(),
 });
 
 type RouteParams = { params: Promise<{ testId: string }> };

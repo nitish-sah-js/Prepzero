@@ -46,6 +46,8 @@ export default async function StudentResultsPage() {
           title: true,
           totalMarks: true,
           passingMarks: true,
+          resultVisibility: true,
+          showResults: true,
           drive: {
             select: { title: true, companyName: true },
           },
@@ -54,6 +56,12 @@ export default async function StudentResultsPage() {
     },
     orderBy: { submittedAt: "desc" },
   });
+
+  // Filter out attempts where results haven't been released yet
+  const visibleAttempts = attempts.filter(
+    (a) =>
+      a.test.resultVisibility !== "MANUAL_RELEASE" || a.test.showResults
+  );
 
   return (
     <div className="space-y-6">
@@ -64,7 +72,7 @@ export default async function StudentResultsPage() {
         </p>
       </div>
 
-      {attempts.length === 0 ? (
+      {visibleAttempts.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-16 text-center">
           <div className="flex items-center justify-center size-12 rounded-xl bg-muted mb-4">
             <FileText className="size-5 text-muted-foreground" />
@@ -76,7 +84,7 @@ export default async function StudentResultsPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {attempts.map((attempt) => {
+          {visibleAttempts.map((attempt) => {
             const passed =
               attempt.test.passingMarks > 0 &&
               (attempt.score ?? 0) >= attempt.test.passingMarks;

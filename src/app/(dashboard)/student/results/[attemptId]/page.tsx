@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { QuestionText } from "@/components/ui/question-text";
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null || seconds === undefined) return "N/A";
@@ -81,6 +82,14 @@ export default async function ResultDetailPage({
 
   if (attempt.status === "IN_PROGRESS") {
     redirect(`/test/${attempt.testId}/attempt`);
+  }
+
+  // Block access if results haven't been released yet
+  if (
+    attempt.test.resultVisibility === "MANUAL_RELEASE" &&
+    !attempt.test.showResults
+  ) {
+    redirect("/student/results");
   }
 
   const answerMap = new Map(
@@ -258,10 +267,10 @@ export default async function ResultDetailPage({
                       )}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium text-sm leading-relaxed">
+                      <div className="font-medium text-sm leading-relaxed">
                         <span className="text-muted-foreground mr-1.5">Q{index + 1}.</span>
-                        {question.questionText}
-                      </p>
+                        <QuestionText className="inline">{question.questionText}</QuestionText>
+                      </div>
                       <div className="flex items-center gap-2 mt-1.5">
                         <span className="text-[11px] text-muted-foreground">
                           {isCoding
@@ -334,7 +343,7 @@ export default async function ResultDetailPage({
                             )}>
                               {String.fromCharCode(65 + optIdx)}
                             </div>
-                            <span className="flex-1 text-sm">{option.text}</span>
+                            <span className="flex-1 text-sm"><QuestionText inline>{option.text}</QuestionText></span>
                             {isSelected && isCorrectOption && (
                               <CheckCircle className="size-4 shrink-0 text-emerald-500" />
                             )}
@@ -386,9 +395,9 @@ export default async function ResultDetailPage({
                         <Lightbulb className="size-3 text-amber-500" />
                         <span className="text-xs font-medium text-muted-foreground">Explanation</span>
                       </div>
-                      <p className="text-sm text-foreground/80 leading-relaxed">
+                      <QuestionText className="text-sm text-foreground/80 leading-relaxed">
                         {question.explanation}
-                      </p>
+                      </QuestionText>
                     </div>
                   )}
                 </div>

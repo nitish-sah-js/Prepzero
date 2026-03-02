@@ -61,6 +61,8 @@ interface TestData {
   allowedDepartmentIds: string[] | null;
   allowedSemesters: number[] | null;
   allowedStudentIds: string[] | null;
+  resultVisibility: string;
+  showResults: boolean;
   drive: {
     id: string;
     title: string;
@@ -117,6 +119,9 @@ export default function TestDetailPage() {
   const [passingMarks, setPassingMarks] = useState(0);
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [status, setStatus] = useState("DRAFT");
+  const [resultVisibility, setResultVisibility] = useState("AFTER_SUBMISSION");
+  const [showResults, setShowResults] = useState(false);
+  const [isTogglingResults, setIsTogglingResults] = useState(false);
 
   // Eligibility state
   const [departments, setDepartments] = useState<DepartmentData[]>([]);
@@ -159,6 +164,8 @@ export default function TestDetailPage() {
         setPassingMarks(testData.passingMarks);
         setShuffleQuestions(testData.shuffleQuestions);
         setStatus(testData.status);
+        setResultVisibility(testData.resultVisibility || "AFTER_SUBMISSION");
+        setShowResults(testData.showResults ?? false);
 
         // Initialize eligibility state
         setAllowedDepartmentIds(testData.allowedDepartmentIds ?? []);
@@ -215,6 +222,8 @@ export default function TestDetailPage() {
           passingMarks,
           shuffleQuestions,
           status,
+          resultVisibility,
+          showResults,
           allowedDepartmentIds: allowedDepartmentIds.length > 0 ? allowedDepartmentIds : null,
           allowedSemesters: allowedSemesters.length > 0 ? allowedSemesters : null,
           allowedStudentIds: allowedStudentIds.length > 0 ? allowedStudentIds : null,
@@ -562,6 +571,19 @@ export default function TestDetailPage() {
               </Select>
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="resultVisibility">Result Visibility</Label>
+              <Select value={resultVisibility} onValueChange={setResultVisibility}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="AFTER_SUBMISSION">Immediately after submission</SelectItem>
+                  <SelectItem value="MANUAL_RELEASE">Manually released by admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex gap-3 pt-4">
               <Button type="submit" disabled={isSaving}>
                 {isSaving && <Loader2 className="mr-2 size-4 animate-spin" />}
@@ -575,6 +597,38 @@ export default function TestDetailPage() {
                   View Results
                 </Link>
               </Button>
+              {resultVisibility === "MANUAL_RELEASE" && (
+                <Button
+                  type="button"
+                  variant={showResults ? "destructive" : "default"}
+                  disabled={isTogglingResults}
+                  onClick={async () => {
+                    setIsTogglingResults(true);
+                    try {
+                      const res = await fetch(`/api/tests/${params.testId}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ showResults: !showResults }),
+                      });
+                      if (!res.ok) throw new Error("Failed to toggle results");
+                      setShowResults(!showResults);
+                      toast.success(
+                        showResults
+                          ? "Results hidden from students"
+                          : "Results released to students"
+                      );
+                    } catch {
+                      toast.error("Failed to toggle result visibility");
+                    } finally {
+                      setIsTogglingResults(false);
+                    }
+                  }}
+                >
+                  {isTogglingResults && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  <Eye />
+                  {showResults ? "Hide Results" : "Release Results"}
+                </Button>
+              )}
               <Button type="button" variant="outline" asChild>
                 <Link
                   href={`/college/drives/${params.driveId}/tests/${params.testId}/monitor`}

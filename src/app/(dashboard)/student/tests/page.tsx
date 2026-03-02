@@ -18,6 +18,7 @@ import {
   HelpCircle,
   Building2,
   ArrowRight,
+  LockKeyhole,
 } from "lucide-react";
 
 const statusConfig = {
@@ -206,13 +207,20 @@ export default async function StudentTestsPage({
 
                   {/* Action */}
                   {isCompleted ? (
-                    <Button variant="outline" size="sm" asChild className="w-full">
-                      <Link href={`/student/results/${attempt.id}`}>
-                        <CheckCircle className="size-4 mr-2" aria-hidden="true" />
-                        View Result
-                        <ArrowRight className="size-4 ml-auto" aria-hidden="true" />
-                      </Link>
-                    </Button>
+                    test.resultVisibility === "MANUAL_RELEASE" && !test.showResults ? (
+                      <Button variant="outline" size="sm" disabled className="w-full">
+                        <LockKeyhole className="size-4 mr-2" aria-hidden="true" />
+                        Results Pending
+                      </Button>
+                    ) : (
+                      <Button variant="outline" size="sm" asChild className="w-full">
+                        <Link href={`/student/results/${attempt.id}`}>
+                          <CheckCircle className="size-4 mr-2" aria-hidden="true" />
+                          View Result
+                          <ArrowRight className="size-4 ml-auto" aria-hidden="true" />
+                        </Link>
+                      </Button>
+                    )
                   ) : isInProgress ? (
                     <Button variant="secondary" size="sm" asChild className="w-full">
                       <Link href={`/test/${test.id}/attempt`}>

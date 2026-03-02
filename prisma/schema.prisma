@@ -52,6 +52,11 @@ enum Difficulty {
   HARD
 }
 
+enum ResultVisibility {
+  AFTER_SUBMISSION
+  MANUAL_RELEASE
+}
+
 // Better Auth tables (extended)
 
 model User {
@@ -172,6 +177,8 @@ model Test {
   allowedDepartmentIds  Json?    // string[] of department IDs
   allowedSemesters      Json?    // number[] of semesters (1-8)
   allowedStudentIds     Json?    // string[] of specific student IDs
+  resultVisibility ResultVisibility @default(AFTER_SUBMISSION)
+  showResults      Boolean         @default(false)
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 

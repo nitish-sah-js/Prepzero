@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -24,7 +24,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Trash2, Code2, Eye, EyeOff } from "lucide-react";
+import { QuestionText } from "@/components/ui/question-text";
 
 interface Option {
   id: string;
@@ -54,6 +55,8 @@ export default function NewQuestionPage() {
   const params = useParams<{ driveId: string; testId: string }>();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [questionText, setQuestionText] = useState("");
   const [questionType, setQuestionType] = useState("SINGLE_SELECT");
@@ -271,18 +274,76 @@ export default function NewQuestionPage() {
               <Label htmlFor="questionText">
                 Question Text <span className="text-destructive">*</span>
               </Label>
-              <Textarea
-                id="questionText"
-                value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
-                placeholder={
-                  isCoding
-                    ? "Describe the coding problem..."
-                    : "Enter your question here..."
-                }
-                rows={4}
-                required
-              />
+              <div className="flex items-center gap-1 mb-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => {
+                    const ta = textareaRef.current;
+                    if (!ta) return;
+                    const start = ta.selectionStart;
+                    const end = ta.selectionEnd;
+                    const selected = questionText.slice(start, end);
+                    const codeBlock = selected
+                      ? "```\n" + selected + "\n```"
+                      : "```\n// paste code here\n```";
+                    const newText =
+                      questionText.slice(0, start) +
+                      codeBlock +
+                      questionText.slice(end);
+                    setQuestionText(newText);
+                    setShowPreview(false);
+                    setTimeout(() => {
+                      ta.focus();
+                      const cursor = start + codeBlock.length;
+                      ta.setSelectionRange(cursor, cursor);
+                    }, 0);
+                  }}
+                >
+                  <Code2 className="size-3.5" />
+                  Code Block
+                </Button>
+                <div className="flex-1" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => setShowPreview(!showPreview)}
+                >
+                  {showPreview ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                  {showPreview ? "Edit" : "Preview"}
+                </Button>
+              </div>
+              {showPreview ? (
+                <div className="min-h-[120px] rounded-md border bg-background p-3">
+                  {questionText.trim() ? (
+                    <QuestionText>{questionText}</QuestionText>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Nothing to preview</p>
+                  )}
+                </div>
+              ) : (
+                <Textarea
+                  ref={textareaRef}
+                  id="questionText"
+                  value={questionText}
+                  onChange={(e) => setQuestionText(e.target.value)}
+                  placeholder={
+                    isCoding
+                      ? "Describe the coding problem... (supports Markdown — use ``` for code blocks)"
+                      : "Enter your question here... (supports Markdown — use ``` for code blocks)"
+                  }
+                  rows={4}
+                  className="font-mono text-sm"
+                  required
+                />
+              )}
+              <p className="text-xs text-muted-foreground">
+                Supports Markdown. Wrap code in <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">```</code> fences for proper formatting.
+              </p>
             </div>
 
             <div className="space-y-2">

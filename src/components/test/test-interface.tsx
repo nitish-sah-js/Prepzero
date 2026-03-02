@@ -26,6 +26,7 @@ import {
   Code2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { QuestionText } from "@/components/ui/question-text";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -796,9 +797,9 @@ export function TestInterface({ testId }: TestInterfaceProps) {
                 </div>
 
                 {/* Question text */}
-                <h2 className="text-xl font-semibold leading-relaxed mb-8 text-foreground">
+                <QuestionText className="text-xl font-semibold leading-relaxed mb-8 text-foreground [&_p]:text-xl [&_p]:font-semibold">
                   {currentQuestion.questionText}
-                </h2>
+                </QuestionText>
 
                 {/* MCQ Options */}
                 {currentQuestion.questionType !== "CODING" && (
@@ -844,7 +845,7 @@ export function TestInterface({ testId }: TestInterfaceProps) {
                               "flex-1",
                               isSelected ? "text-foreground font-medium" : "text-foreground/80"
                             )}>
-                              {option.text}
+                              <QuestionText inline>{option.text}</QuestionText>
                             </span>
                             {/* Selection indicator */}
                             {isSelected && (

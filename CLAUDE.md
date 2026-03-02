@@ -11,6 +11,7 @@ PrepZero is a placement testing and proctoring platform built with Next.js 16 (A
 ```bash
 npm run dev          # Start dev server (localhost:3000)
 npm run build        # Production build
+npm start            # Start production server
 npm run lint         # ESLint
 npm run db:push      # Sync Prisma schema to database
 npm run db:generate  # Regenerate Prisma client (after schema changes)
@@ -18,10 +19,13 @@ npm run db:seed      # Seed database with test data (tsx prisma/seed.ts)
 npm run db:create-admin  # Create super admin: tsx prisma/create-admin.ts <name> <email> <password>
 ```
 
-No test framework is configured. There are utility scripts in `scripts/` run via `tsx scripts/<name>.ts`:
+No test framework is configured. Utility scripts in `scripts/` run via `tsx scripts/<name>.ts`:
 - `add-student.ts` — Add a single student to a college
 - `fetch-data.ts` — Dump all users, colleges, drives, and tests from the database
 - `register-college-admin.ts` — Register a college admin via API
+- `generate-test-csv.ts` — Generate a CSV of random students from DB
+- `test-eligibility.ts` — Run eligibility logic tests against live DB
+- `reset-and-seed-students.ts` — Reset and re-seed student data
 
 Judge0 (code execution engine for coding questions):
 ```bash
@@ -40,9 +44,9 @@ docker compose up -d   # Start Judge0 services (server, workers, postgres, redis
 
 ### Route Structure
 - `src/app/(auth)/` — Public auth pages (login, register, register/student)
-- `src/app/(dashboard)/admin/` — Super admin dashboard
-- `src/app/(dashboard)/college/` — College admin dashboard
-- `src/app/(dashboard)/student/` — Student dashboard
+- `src/app/(dashboard)/admin/` — Super admin dashboard (colleges, users, settings, question library)
+- `src/app/(dashboard)/college/` — College admin dashboard (drives, tests, students, departments, library)
+- `src/app/(dashboard)/student/` — Student dashboard (drives, tests, results, settings)
 - `src/app/test/[testId]/` — Test-taking interface (separate from dashboard, uses proctoring)
 - `src/app/api/` — REST API routes (see API Route Patterns below)
 
@@ -50,19 +54,31 @@ docker compose up -d   # Start Judge0 services (server, workers, postgres, redis
 - `src/lib/auth.ts` — Better Auth config with Prisma adapter; extends User with `role` and `collegeId` fields. Students are limited to one active session (previous sessions deleted on login).
 - `src/lib/auth-client.ts` — Client-side auth helpers (`signIn`, `signUp`, `signOut`, `useSession`)
 - `src/lib/auth-guard.ts` — Server-side helpers: `getSession()`, `requireAuth()`, `requireRole(role)`, `getRoleRedirect(role)`
-- `src/lib/judge0.ts` — Code execution: `executeCode()` for single runs, `executeBatch()` for test case validation with polling. Language IDs: PYTHON→71, JAVA→62, C→50, CPP→54
+- `src/lib/judge0.ts` — Code execution: `executeCode()` for single runs (synchronous, `wait=true`), `executeBatch()` for test case validation (polls every 2s, max 15 attempts). Language IDs: PYTHON→71, JAVA→62, C→50, CPP→54
 - `src/lib/prisma.ts` — Prisma client singleton using `PrismaPg` driver adapter (not the default Prisma engine)
 - `src/lib/test-eligibility.ts` — `isStudentEligible()` checks test access by department, semester, and specific student lists. `buildEligibleStudentsWhere()` builds Prisma where clauses for querying eligible students. Tests use JSON fields (`allowedDepartmentIds`, `allowedSemesters`, `allowedStudentIds`) for eligibility restrictions.
-- `src/lib/csv-parser.ts` / `src/lib/student-csv-parser.ts` — CSV parsing for bulk student import with USN-based department extraction
+- `src/lib/csv-parser.ts` — CSV parsing for bulk MCQ question import; also exports `parseEligibilityCSV()` for test eligibility CSVs (name, usn, email, department columns)
+- `src/lib/student-csv-parser.ts` — CSV parsing for bulk student import with USN-based department extraction
+- `src/lib/library-csv-parser.ts` — CSV parsing for question library bulk upload (adds `category` and `difficulty` columns)
 - `src/middleware.ts` — Route protection; checks `better-auth.session_token` cookie, redirects unauthenticated users to `/login`
-- `src/hooks/use-proctoring.ts` — Client-side proctoring hook tracking tab switches, fullscreen exits, copy/paste, right-click, keyboard shortcuts. Auto-submits the test when `maxViolations` threshold is reached.
+- `src/hooks/use-proctoring.ts` — Client-side proctoring hook tracking tab switches, fullscreen exits, copy/paste. Auto-submits when `maxViolations` threshold is reached. Allows copy/paste within `.monaco-editor`.
 
 ### Database Schema
-Defined in `prisma/schema.prisma`. Prisma client output goes to `src/generated/prisma`. Key models: User, College, Department, PlacementDrive, Test, Question, TestAttempt, Answer, TestCase. Import types from `@/generated/prisma/client`.
+Defined in `prisma/schema.prisma`. Prisma client output goes to `src/generated/prisma`. Prisma config in `prisma.config.ts`. Import types from `@/generated/prisma/client`.
 
-Key enums: `Role` (SUPER_ADMIN, COLLEGE_ADMIN, STUDENT), `QuestionType` (SINGLE_SELECT, MULTI_SELECT, CODING), `DriveStatus` (DRAFT, UPCOMING, ACTIVE, COMPLETED, CANCELLED), `TestStatus` (DRAFT, PUBLISHED, CLOSED), `AttemptStatus` (IN_PROGRESS, SUBMITTED, TIMED_OUT), `CodingLanguage` (PYTHON, JAVA, C, CPP).
+Key models: User, College, Department, PlacementDrive, Test, Question, TestAttempt, Answer, TestCase, LibraryQuestion, LibraryTestCase.
 
-Question `options` and `correctOptionIds` are JSON fields. `options` stores `Array<{id: string, text: string}>`, `correctOptionIds` stores `string[]`. Answer `selectedOptionIds` follows the same `string[]` pattern. TestAttempt has a `@@unique([testId, studentId])` constraint (one attempt per student per test). Questions support `negativeMarks` for penalty scoring. TestAttempt tracks proctoring violations (`tabSwitchCount`, `fullscreenExitCount`, `copyPasteAttempts`) with a configurable `maxViolations` threshold on the Test model.
+Key enums: `Role` (SUPER_ADMIN, COLLEGE_ADMIN, STUDENT), `QuestionType` (SINGLE_SELECT, MULTI_SELECT, CODING), `DriveStatus` (DRAFT, UPCOMING, ACTIVE, COMPLETED, CANCELLED), `TestStatus` (DRAFT, PUBLISHED, CLOSED), `AttemptStatus` (IN_PROGRESS, SUBMITTED, TIMED_OUT), `CodingLanguage` (PYTHON, JAVA, C, CPP), `Difficulty` (EASY, MEDIUM, HARD).
+
+**JSON field patterns:** Question `options` stores `Array<{id: string, text: string}>`, `correctOptionIds` stores `string[]`. Answer `selectedOptionIds` follows the same `string[]` pattern.
+
+**Key constraints:** TestAttempt has `@@unique([testId, studentId])` (one attempt per student per test). Answer has `@@unique([attemptId, questionId])` (one answer per question per attempt). User `usn` is unique.
+
+**User model:** Extends auth user with `role`, `collegeId`, `usn`, `departmentId`, `semester`, `isGraduated`.
+
+**TestAttempt proctoring fields:** `tabSwitchCount`, `fullscreenExitCount`, `copyPasteAttempts`, `totalViolations`, `maxViolations` (default 5), `autoSubmitted`.
+
+**Library system:** `LibraryQuestion` stores reusable questions with `category` (string) and `difficulty` (enum). `LibraryTestCase` stores test cases for library coding questions. Library questions can be imported into specific tests.
 
 ### Authentication & Authorization
 - Middleware checks `better-auth.session_token` (dev) or `__Secure-better-auth.session_token` (prod) cookie on all non-public routes
@@ -85,12 +101,15 @@ Question `options` and `correctOptionIds` are JSON fields. `options` stores `Arr
 
 Key API endpoints:
 - `/api/auth/**` — Better Auth + custom `/register-college-admin`, `/register-student`
-- `/api/colleges` — CRUD + `[collegeId]/usn-structure`
+- `/api/colleges` — CRUD + `/usn-structure` (reads college from auth session, no collegeId param)
 - `/api/departments` — CRUD scoped to college
 - `/api/drives` — CRUD for placement drives
-- `/api/tests` — CRUD + `[testId]/questions` (CRUD + bulk), `[testId]/start`, `[testId]/submit`
-- `/api/students` — CRUD + `/bulk`, `/profile`, `/search`
+- `/api/tests` — CRUD + `[testId]/questions` (CRUD + bulk), `[testId]/start`, `[testId]/submit`, `[testId]/monitor`
+- `/api/students` — CRUD + `/bulk`, `/profile`, `/resolve`, `/validate`
 - `/api/attempts` — CRUD + `[attemptId]/answers`, `[attemptId]/run` (code execution), `[attemptId]/violations`
+- `/api/library/questions` — CRUD + `/bulk`, `/import` (import into test)
+- `/api/library/categories` — List all question categories
+- `/api/users/[userId]` — DELETE (super admin only)
 - `/api/stats` — Aggregated dashboard stats
 
 ### Conventions
@@ -104,9 +123,10 @@ Key API endpoints:
 - IDs generated with `nanoid`; dates handled with `date-fns`
 - Analytics charts use `recharts` (bar charts, pie charts for college/test statistics)
 - Classname utility: `cn()` from `src/lib/utils.ts` (merges `clsx` + `tailwind-merge`)
+- Root layout uses `ThemeProvider` (next-themes) with `defaultTheme="light"`
 
 ### Environment Variables
-Required in `.env`: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `JUDGE0_API_URL` (default `http://localhost:2358` for local Docker). Optional: `JUDGE0_API_KEY` (only for RapidAPI-hosted Judge0).
+Required in `.env`: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `NEXT_PUBLIC_APP_URL`, `JUDGE0_API_URL` (default `http://localhost:2358` for local Docker). Optional: `JUDGE0_API_KEY` (only for RapidAPI-hosted Judge0), `DIRECT_URL` (direct DB connection for migrations).
 
 ### Seed Data
 `npm run db:seed` creates test accounts for development:

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth-guard";
 import { isStudentEligible } from "@/lib/test-eligibility";
-import { TestStatus } from "@/generated/prisma/client";
+import { TestStatus, ResultVisibility } from "@/generated/prisma/client";
 
 const createTestSchema = z.object({
   driveId: z.string().min(1, "Drive ID is required"),
@@ -19,6 +19,7 @@ const createTestSchema = z.object({
   allowedDepartmentIds: z.array(z.string()).nullable().optional(),
   allowedSemesters: z.array(z.number().int().min(1).max(8)).nullable().optional(),
   allowedStudentIds: z.array(z.string()).nullable().optional(),
+  resultVisibility: z.nativeEnum(ResultVisibility).optional(),
 });
 
 // GET /api/tests — list tests (optionally filter by driveId query param)
