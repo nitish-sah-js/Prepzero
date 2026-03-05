@@ -1,9 +1,18 @@
+export interface CSVTestCase {
+  input: string;
+  expectedOutput: string;
+  isSample: boolean;
+}
+
 export interface CSVQuestion {
   questionText: string;
   imageUrl?: string;
-  questionType: "SINGLE_SELECT" | "MULTI_SELECT";
+  questionType: "SINGLE_SELECT" | "MULTI_SELECT" | "CODING";
+  // MCQ fields (empty arrays for CODING)
   options: { id: string; text: string }[];
   correctOptionIds: string[];
+  // Coding fields
+  testCases?: CSVTestCase[];
   marks: number;
   negativeMarks: number;
   explanation?: string;
@@ -126,27 +135,47 @@ export function parseQuestionsCSV(text: string): {
       continue;
     }
 
+    // Parse question type first so we can branch logic
+    const rawType = row[colIndex("question_type")]?.toUpperCase().trim();
+    const questionType: "SINGLE_SELECT" | "MULTI_SELECT" | "CODING" =
+      rawType === "MULTI_SELECT"
+        ? "MULTI_SELECT"
+        : rawType === "CODING"
+          ? "CODING"
+          : "SINGLE_SELECT";
+
+    // Parse marks
+    const marksRaw = row[colIndex("marks")];
+    const marks = marksRaw ? parseInt(marksRaw, 10) : 1;
+    if (isNaN(marks) || marks < 1) {
+      errors.push({ row: rowNum, message: `Invalid marks value: "${marksRaw}"` });
+      continue;
+    }
+
+    // Parse negative marks
+    const negMarksRaw = row[colIndex("negative_marks")];
+    const negativeMarks = negMarksRaw ? parseFloat(negMarksRaw) : 0;
+    if (isNaN(negativeMarks) || negativeMarks < 0) {
+      errors.push({ row: rowNum, message: `Invalid negative_marks value: "${negMarksRaw}"` });
+      continue;
+    }
+
+    const explanation = row[colIndex("explanation")] || undefined;
+    const imageUrlIdx = header.indexOf("image_url");
+    const imageUrl = imageUrlIdx !== -1 ? row[imageUrlIdx]?.trim() || undefined : undefined;
+
+    // --- MCQ / CODING path (CODING uses MCQ options for answers) ---
     // Collect non-empty options
     const optionTexts: { index: number; text: string }[] = [];
     for (let j = 1; j <= 4; j++) {
       const text = row[colIndex(`option_${j}`)];
-      if (text) {
-        optionTexts.push({ index: j, text });
-      }
+      if (text) optionTexts.push({ index: j, text });
     }
 
     if (optionTexts.length < 2) {
-      errors.push({
-        row: rowNum,
-        message: `At least 2 options required, found ${optionTexts.length}`,
-      });
+      errors.push({ row: rowNum, message: `At least 2 options required, found ${optionTexts.length}` });
       continue;
     }
-
-    // Parse question type
-    const rawType = row[colIndex("question_type")]?.toUpperCase().trim();
-    const questionType: "SINGLE_SELECT" | "MULTI_SELECT" =
-      rawType === "MULTI_SELECT" ? "MULTI_SELECT" : "SINGLE_SELECT";
 
     // Parse correct answers (1-indexed, semicolon-separated)
     const correctAnswersRaw = row[colIndex("correct_answers")];
@@ -155,80 +184,32 @@ export function parseQuestionsCSV(text: string): {
       continue;
     }
 
-    const correctIndices = correctAnswersRaw
-      .split(";")
-      .map((s) => parseInt(s.trim(), 10));
-
+    const correctIndices = correctAnswersRaw.split(";").map((s) => parseInt(s.trim(), 10));
     if (correctIndices.some((n) => isNaN(n))) {
-      errors.push({
-        row: rowNum,
-        message: `Invalid correct_answers format: "${correctAnswersRaw}"`,
-      });
+      errors.push({ row: rowNum, message: `Invalid correct_answers format: "${correctAnswersRaw}"` });
       continue;
     }
 
-    // Validate correct answer indices reference non-empty options
     const validOptionIndices = optionTexts.map((o) => o.index);
-    const invalidIndices = correctIndices.filter(
-      (idx) => !validOptionIndices.includes(idx)
-    );
+    const invalidIndices = correctIndices.filter((idx) => !validOptionIndices.includes(idx));
     if (invalidIndices.length > 0) {
-      errors.push({
-        row: rowNum,
-        message: `Correct answers reference empty/missing options: ${invalidIndices.join(", ")}`,
-      });
+      errors.push({ row: rowNum, message: `Correct answers reference empty/missing options: ${invalidIndices.join(", ")}` });
       continue;
     }
 
-    // SINGLE_SELECT must have exactly 1 correct answer
     if (questionType === "SINGLE_SELECT" && correctIndices.length !== 1) {
-      errors.push({
-        row: rowNum,
-        message: `SINGLE_SELECT must have exactly 1 correct answer, found ${correctIndices.length}`,
-      });
+      errors.push({ row: rowNum, message: `SINGLE_SELECT must have exactly 1 correct answer, found ${correctIndices.length}` });
       continue;
     }
 
-    // Build options with generated IDs
     const options = optionTexts.map((o, idx) => ({
       id: `opt_${idBase}_${i}_${idx}`,
       text: o.text,
     }));
-
-    // Map correct 1-indexed positions to option IDs
     const correctOptionIds = correctIndices.map((ci) => {
       const optIdx = optionTexts.findIndex((o) => o.index === ci);
       return options[optIdx].id;
     });
-
-    // Parse marks
-    const marksRaw = row[colIndex("marks")];
-    const marks = marksRaw ? parseInt(marksRaw, 10) : 1;
-    if (isNaN(marks) || marks < 1) {
-      errors.push({
-        row: rowNum,
-        message: `Invalid marks value: "${marksRaw}"`,
-      });
-      continue;
-    }
-
-    // Parse negative marks
-    const negMarksRaw = row[colIndex("negative_marks")];
-    const negativeMarks = negMarksRaw ? parseFloat(negMarksRaw) : 0;
-    if (isNaN(negativeMarks) || negativeMarks < 0) {
-      errors.push({
-        row: rowNum,
-        message: `Invalid negative_marks value: "${negMarksRaw}"`,
-      });
-      continue;
-    }
-
-    const explanation = row[colIndex("explanation")] || undefined;
-
-    // image_url is optional — only present if the column exists
-    const imageUrlIdx = header.indexOf("image_url");
-    const imageUrl =
-      imageUrlIdx !== -1 ? row[imageUrlIdx]?.trim() || undefined : undefined;
 
     questions.push({
       questionText,
@@ -336,10 +317,13 @@ export function parseEligibilityCSV(text: string): {
 
 /**
  * Generate a CSV template string for download.
+ * Includes MCQ (single/multi) and CODING examples.
+ * CODING questions display in code format; students answer via MCQ options.
  */
 export function generateCSVTemplate(): string {
   const header = [...EXPECTED_HEADERS, "image_url"].join(",");
-  const example1 = `"What is 2+2?","1","2","3","4","4",SINGLE_SELECT,1,0,"",""`;
-  const example2 = `"Select all prime numbers","2","3","4","5","1;2;4",MULTI_SELECT,2,0.5,"2, 3, and 5 are prime","https://example.com/image.png"`;
-  return `${header}\n${example1}\n${example2}\n`;
+  const mcq1 = `"What is 2+2?","1","2","3","4","4",SINGLE_SELECT,1,0,"",""`;
+  const mcq2 = `"Select all prime numbers","2","3","4","5","1;2;4",MULTI_SELECT,2,0.5,"2, 3, and 5 are prime",""`;
+  const coding = `"What is the output of the following Python code? print(2 + 2)","2","4","6","8","2",CODING,2,0,"print() outputs 4",""`;
+  return `${header}\n${mcq1}\n${mcq2}\n${coding}\n`;
 }

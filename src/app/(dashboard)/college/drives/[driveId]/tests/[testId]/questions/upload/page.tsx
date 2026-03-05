@@ -6,6 +6,18 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -14,14 +26,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ArrowLeft, Download, ImageIcon, Loader2, Upload } from "lucide-react";
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Download, Loader2, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import {
   parseQuestionsCSV,
   generateCSVTemplate,
@@ -32,6 +43,9 @@ import { fileToCSVText } from "@/lib/spreadsheet";
 
 type Phase = "select" | "preview" | "uploading";
 
+let optCounter = 0;
+function newOptId() { optCounter += 1; return `opt_${Date.now()}_${optCounter}`; }
+
 export default function BulkUploadPage() {
   const params = useParams<{ driveId: string; testId: string }>();
   const router = useRouter();
@@ -40,9 +54,12 @@ export default function BulkUploadPage() {
   const [questions, setQuestions] = useState<CSVQuestion[]>([]);
   const [errors, setErrors] = useState<CSVParseError[]>([]);
 
+  // Edit dialog state
+  const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [editQ, setEditQ] = useState<CSVQuestion | null>(null);
+
   async function handleDownloadTemplate(format: "csv" | "xlsx") {
     const csv = generateCSVTemplate();
-
     if (format === "xlsx") {
       const { utils, writeFile } = await import("xlsx");
       const rows = csv.trim().split("\n").map((line) =>
@@ -56,9 +73,7 @@ export default function BulkUploadPage() {
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = "questions_template.csv";
-      a.click();
+      a.href = url; a.download = "questions_template.csv"; a.click();
       URL.revokeObjectURL(url);
     }
   }
@@ -66,7 +81,6 @@ export default function BulkUploadPage() {
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const text = await fileToCSVText(file);
     const result = parseQuestionsCSV(text);
     setQuestions(result.questions);
@@ -77,52 +91,69 @@ export default function BulkUploadPage() {
   async function handleUpload() {
     if (questions.length === 0) return;
     setPhase("uploading");
-
     try {
-      const res = await fetch(
-        `/api/tests/${params.testId}/questions/bulk`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ questions }),
-        }
-      );
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Upload failed");
-      }
-
+      const res = await fetch(`/api/tests/${params.testId}/questions/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questions }),
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error || "Upload failed"); }
       const data = await res.json();
       toast.success(`${data.created} questions uploaded successfully`);
-      router.push(
-        `/college/drives/${params.driveId}/tests/${params.testId}`
-      );
+      router.push(`/college/drives/${params.driveId}/tests/${params.testId}`);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Something went wrong"
-      );
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
       setPhase("preview");
     }
+  }
+
+  function deleteQuestion(i: number) {
+    setQuestions((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function openEdit(i: number) {
+    setEditIdx(i);
+    setEditQ(JSON.parse(JSON.stringify(questions[i]))); // deep clone
+  }
+
+  function saveEdit() {
+    if (editIdx === null || !editQ) return;
+    setQuestions((prev) => prev.map((q, i) => (i === editIdx ? editQ : q)));
+    setEditIdx(null);
+    setEditQ(null);
+  }
+
+  // Edit helpers
+  function setEQ<K extends keyof CSVQuestion>(key: K, val: CSVQuestion[K]) {
+    setEditQ((prev) => prev ? { ...prev, [key]: val } : prev);
+  }
+
+  function updateOption(id: string, text: string) {
+    setEditQ((prev) => prev ? {
+      ...prev,
+      options: prev.options.map((o) => o.id === id ? { ...o, text } : o),
+    } : prev);
+  }
+
+  function removeOption(id: string) {
+    if (!editQ || editQ.options.length <= 2) { toast.error("At least 2 options required"); return; }
+    setEditQ((prev) => prev ? {
+      ...prev,
+      options: prev.options.filter((o) => o.id !== id),
+      correctOptionIds: prev.correctOptionIds.filter((cid) => cid !== id),
+    } : prev);
   }
 
   return (
     <div className="space-y-6">
       <div>
         <Button variant="ghost" size="sm" asChild className="mb-2">
-          <Link
-            href={`/college/drives/${params.driveId}/tests/${params.testId}`}
-          >
-            <ArrowLeft />
-            Back to Test
+          <Link href={`/college/drives/${params.driveId}/tests/${params.testId}`}>
+            <ArrowLeft />Back to Test
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight text-balance">
-          Bulk Upload Questions
-        </h1>
-        <p className="text-muted-foreground">
-          Upload MCQ questions from a CSV or Excel file.
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-balance">Bulk Upload Questions</h1>
+        <p className="text-muted-foreground">Upload MCQ and coding questions from a CSV or Excel file.</p>
       </div>
 
       {/* Phase 1: File Selection */}
@@ -131,72 +162,26 @@ export default function BulkUploadPage() {
           <CardHeader>
             <CardTitle>Upload File</CardTitle>
             <CardDescription>
-              Upload a CSV or Excel (.xlsx) file with your questions. Download the template to
-              see the expected format.
+              Upload a CSV or Excel (.xlsx) file with your questions. Download the template to see the expected format.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-md border p-4 text-sm text-muted-foreground space-y-3">
-              <p className="font-medium text-foreground">CSV Format</p>
+              <p className="font-medium text-foreground">File Format</p>
               <ul className="space-y-1.5 text-[13px]">
-                <li>
-                  <code className="bg-muted px-1 rounded text-xs">option_1</code>{" "}
-                  to{" "}
-                  <code className="bg-muted px-1 rounded text-xs">option_4</code>{" "}
-                  &mdash; min 2, leave extras blank
-                </li>
-                <li>
-                  <code className="bg-muted px-1 rounded text-xs">correct_answers</code>{" "}
-                  &mdash; option number(s), e.g.{" "}
-                  <code className="bg-muted px-1 rounded text-xs">2</code> or{" "}
-                  <code className="bg-muted px-1 rounded text-xs">1;3;5</code>
-                </li>
-                <li>
-                  <code className="bg-muted px-1 rounded text-xs">question_type</code>{" "}
-                  &mdash;{" "}
-                  <code className="bg-muted px-1 rounded text-xs">SINGLE_SELECT</code>{" "}
-                  (default) or{" "}
-                  <code className="bg-muted px-1 rounded text-xs">MULTI_SELECT</code>
-                </li>
-                <li>
-                  <code className="bg-muted px-1 rounded text-xs">marks</code>{" "}
-                  &mdash; default 1 &nbsp;|&nbsp;{" "}
-                  <code className="bg-muted px-1 rounded text-xs">negative_marks</code>{" "}
-                  &mdash; default 0
-                </li>
-                <li>
-                  <code className="bg-muted px-1 rounded text-xs">explanation</code>{" "}
-                  &mdash; optional
-                </li>
-                <li>
-                  <code className="bg-muted px-1 rounded text-xs">image_url</code>{" "}
-                  &mdash; optional, public URL to an image (e.g. https://...)
-                </li>
+                <li><code className="bg-muted px-1 rounded text-xs">question_type</code> — <code className="bg-muted px-1 rounded text-xs">SINGLE_SELECT</code>, <code className="bg-muted px-1 rounded text-xs">MULTI_SELECT</code>, or <code className="bg-muted px-1 rounded text-xs">CODING</code></li>
+                <li><code className="bg-muted px-1 rounded text-xs">option_1</code>–<code className="bg-muted px-1 rounded text-xs">option_4</code> &amp; <code className="bg-muted px-1 rounded text-xs">correct_answers</code> — for MCQ only</li>
+                <li>CODING questions expect a plain-text answer from students (no code execution)</li>
+                <li><code className="bg-muted px-1 rounded text-xs">marks</code>, <code className="bg-muted px-1 rounded text-xs">negative_marks</code>, <code className="bg-muted px-1 rounded text-xs">explanation</code>, <code className="bg-muted px-1 rounded text-xs">image_url</code> — optional</li>
               </ul>
-              <p className="text-xs text-muted-foreground">
-                Download the template to see a working example.
-              </p>
             </div>
-
             <div className="flex flex-wrap gap-3">
-              <Button variant="outline" onClick={() => handleDownloadTemplate("csv")}>
-                <Download />
-                Template (.csv)
-              </Button>
-              <Button variant="outline" onClick={() => handleDownloadTemplate("xlsx")}>
-                <Download />
-                Template (.xlsx)
-              </Button>
+              <Button variant="outline" onClick={() => handleDownloadTemplate("csv")}><Download />Template (.csv)</Button>
+              <Button variant="outline" onClick={() => handleDownloadTemplate("xlsx")}><Download />Template (.xlsx)</Button>
               <Button asChild>
                 <label className="cursor-pointer">
-                  <Upload />
-                  Select File
-                  <input
-                    type="file"
-                    accept=".csv,.xlsx,.xls"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
+                  <Upload />Select File
+                  <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileChange} />
                 </label>
               </Button>
             </div>
@@ -209,24 +194,18 @@ export default function BulkUploadPage() {
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <Badge variant="default">{questions.length} valid</Badge>
-            {errors.length > 0 && (
-              <Badge variant="destructive">{errors.length} errors</Badge>
-            )}
+            {errors.length > 0 && <Badge variant="destructive">{errors.length} errors</Badge>}
           </div>
 
           {errors.length > 0 && (
             <Card className="border-destructive">
               <CardHeader className="pb-3">
-                <CardTitle className="text-destructive text-base">
-                  Errors
-                </CardTitle>
+                <CardTitle className="text-destructive text-base">Errors</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="text-sm space-y-1">
                   {errors.map((err, i) => (
-                    <li key={i} className="text-destructive">
-                      Row {err.row}: {err.message}
-                    </li>
+                    <li key={i} className="text-destructive">Row {err.row}: {err.message}</li>
                   ))}
                 </ul>
               </CardContent>
@@ -234,84 +213,43 @@ export default function BulkUploadPage() {
           )}
 
           {questions.length > 0 && (
-            <div className="rounded-lg border border-border shadow-sm overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">#</TableHead>
-                    <TableHead>Question</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-center">Options</TableHead>
-                    <TableHead className="text-center">Marks</TableHead>
-                    <TableHead className="text-center">Image</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {questions.map((q, i) => (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{i + 1}</TableCell>
-                      <TableCell className="max-w-md truncate">
-                        {q.questionText.length > 80
-                          ? q.questionText.substring(0, 80) + "..."
-                          : q.questionText}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {q.questionType === "SINGLE_SELECT"
-                            ? "Single"
-                            : "Multi"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {q.options.length}
-                      </TableCell>
-                      <TableCell className="text-center">{q.marks}</TableCell>
-                      <TableCell className="text-center">
-                        {q.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={q.imageUrl}
-                            alt="preview"
-                            className="h-8 w-8 object-cover rounded mx-auto"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).style.display = "none";
-                              (e.currentTarget.nextSibling as HTMLElement | null)!.style.display = "flex";
-                            }}
-                          />
-                        ) : null}
-                        {q.imageUrl ? (
-                          <span className="hidden items-center justify-center text-muted-foreground">
-                            <ImageIcon className="size-4" />
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="space-y-3">
+              {questions.map((q, i) =>
+                (
+                  <div key={i} className="rounded-lg border border-border shadow-sm overflow-hidden">
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <span className="text-sm font-medium text-muted-foreground w-6">{i + 1}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {q.questionType === "SINGLE_SELECT" ? "Single" : q.questionType === "MULTI_SELECT" ? "Multi" : "Coding"}
+                      </Badge>
+                      <span className="text-sm flex-1 truncate">
+                        {q.questionText.length > 100 ? q.questionText.substring(0, 100) + "..." : q.questionText}
+                      </span>
+                      <span className="text-xs text-muted-foreground shrink-0">{q.options.length} opts</span>
+                      <span className="text-xs text-muted-foreground shrink-0">{q.marks} mark{q.marks !== 1 ? "s" : ""}</span>
+                      {q.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={q.imageUrl} alt="preview" className="h-7 w-7 object-cover rounded shrink-0"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                        />
+                      )}
+                      <div className="flex gap-1 shrink-0">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(i)}><Pencil className="size-4" /></Button>
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => deleteQuestion(i)}><Trash2 className="size-4" /></Button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              )}
             </div>
           )}
 
           <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setPhase("select");
-                setQuestions([]);
-                setErrors([]);
-              }}
-            >
+            <Button variant="outline" onClick={() => { setPhase("select"); setQuestions([]); setErrors([]); }}>
               Choose Different File
             </Button>
-            <Button
-              onClick={handleUpload}
-              disabled={questions.length === 0}
-            >
-              <Upload />
-              Upload {questions.length} Question
-              {questions.length !== 1 ? "s" : ""}
+            <Button onClick={handleUpload} disabled={questions.length === 0}>
+              <Upload />Upload {questions.length} Question{questions.length !== 1 ? "s" : ""}
             </Button>
           </div>
         </div>
@@ -323,14 +261,106 @@ export default function BulkUploadPage() {
           <CardContent className="flex items-center justify-center py-12">
             <div className="text-center space-y-3">
               <Loader2 className="size-8 animate-spin mx-auto text-muted-foreground" />
-              <p className="text-muted-foreground">
-                Uploading {questions.length} question
-                {questions.length !== 1 ? "s" : ""}...
-              </p>
+              <p className="text-muted-foreground">Uploading {questions.length} question{questions.length !== 1 ? "s" : ""}...</p>
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={editIdx !== null} onOpenChange={(open) => { if (!open) { setEditIdx(null); setEditQ(null); } }}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Question {editIdx !== null ? editIdx + 1 : ""}</DialogTitle>
+          </DialogHeader>
+
+          {editQ && (
+            <div className="space-y-5 py-2">
+              {/* Question Text */}
+              <div className="space-y-2">
+                <Label>Question Text</Label>
+                <Textarea value={editQ.questionText} onChange={(e) => setEQ("questionText", e.target.value)} rows={3} className="font-mono text-sm" />
+              </div>
+
+              {/* Type + Marks */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-2 col-span-1">
+                  <Label>Type</Label>
+                  <Select value={editQ.questionType} onValueChange={(v) => setEQ("questionType", v as CSVQuestion["questionType"])}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SINGLE_SELECT">Single Select</SelectItem>
+                      <SelectItem value="MULTI_SELECT">Multi Select</SelectItem>
+                      <SelectItem value="CODING">Coding</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Marks</Label>
+                  <Input type="number" min={1} value={editQ.marks} onChange={(e) => setEQ("marks", parseInt(e.target.value) || 1)} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Neg. Marks</Label>
+                  <Input type="number" min={0} step="0.25" value={editQ.negativeMarks} onChange={(e) => setEQ("negativeMarks", parseFloat(e.target.value) || 0)} />
+                </div>
+              </div>
+
+              {/* Options (all types including CODING) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Options</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={() => {
+                    const id = newOptId();
+                    setEditQ((prev) => prev ? { ...prev, options: [...prev.options, { id, text: "" }] } : prev);
+                  }}>
+                    <Plus className="size-4" />Add
+                  </Button>
+                </div>
+                {editQ.questionType === "MULTI_SELECT" ? (
+                  <div className="space-y-2">
+                    {editQ.options.map((opt, oi) => (
+                      <div key={opt.id} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`edit-c-${opt.id}`}
+                          checked={editQ.correctOptionIds.includes(opt.id)}
+                          onCheckedChange={(checked) => {
+                            setEQ("correctOptionIds", checked
+                              ? [...editQ.correctOptionIds, opt.id]
+                              : editQ.correctOptionIds.filter((id) => id !== opt.id));
+                          }}
+                        />
+                        <Input className="flex-1" placeholder={`Option ${oi + 1}`} value={opt.text} onChange={(e) => updateOption(opt.id, e.target.value)} />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeOption(opt.id)} className="text-destructive hover:text-destructive"><Trash2 className="size-4" /></Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <RadioGroup value={editQ.correctOptionIds[0] || ""} onValueChange={(id) => setEQ("correctOptionIds", [id])} className="space-y-2">
+                    {editQ.options.map((opt, oi) => (
+                      <div key={opt.id} className="flex items-center gap-2">
+                        <RadioGroupItem value={opt.id} id={`edit-r-${opt.id}`} />
+                        <Input className="flex-1" placeholder={`Option ${oi + 1}`} value={opt.text} onChange={(e) => updateOption(opt.id, e.target.value)} />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeOption(opt.id)} className="text-destructive hover:text-destructive"><Trash2 className="size-4" /></Button>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                )}
+              </div>
+
+              {/* Explanation */}
+              <div className="space-y-2">
+                <Label>Explanation <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Textarea value={editQ.explanation ?? ""} onChange={(e) => setEQ("explanation", e.target.value)} rows={2} />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditIdx(null); setEditQ(null); }}>Cancel</Button>
+            <Button onClick={saveEdit}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

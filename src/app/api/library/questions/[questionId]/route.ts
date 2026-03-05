@@ -77,7 +77,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const user = session.user as { role: string };
-    if (user.role !== "SUPER_ADMIN") {
+    if (user.role !== "SUPER_ADMIN" && user.role !== "COLLEGE_ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -152,7 +152,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     }
 
     const user = session.user as { role: string };
-    if (user.role !== "SUPER_ADMIN") {
+    if (user.role !== "SUPER_ADMIN" && user.role !== "COLLEGE_ADMIN") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

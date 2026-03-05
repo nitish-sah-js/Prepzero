@@ -10,8 +10,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SubmitDialog } from "@/components/test/submit-dialog";
 import { ViolationBanner } from "@/components/test/violation-banner";
-import { CodeEditor } from "@/components/test/code-editor";
 import { useProctoring } from "@/hooks/use-proctoring";
+import { CodeTextarea } from "@/components/ui/code-textarea";
 import {
   Clock,
   ChevronLeft,
@@ -78,13 +78,6 @@ interface AttemptDetail {
   }>;
 }
 
-type CodingLanguage = "PYTHON" | "JAVA" | "C" | "CPP";
-
-interface CodeAnswer {
-  code: string;
-  language: CodingLanguage;
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -100,9 +93,6 @@ export function TestInterface({ testId }: TestInterfaceProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Map<string, string[]>>(new Map());
-  const [codeAnswers, setCodeAnswers] = useState<Map<string, CodeAnswer>>(
-    new Map()
-  );
   const [flagged, setFlagged] = useState<Set<string>>(new Set());
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState<Date | null>(null);
@@ -126,7 +116,6 @@ export function TestInterface({ testId }: TestInterfaceProps) {
   // Refs for debounced save
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSavesRef = useRef<Map<string, string[]>>(new Map());
-  const pendingCodeSavesRef = useRef<Map<string, CodeAnswer>>(new Map());
 
   // Proctoring
   const handleViolationAutoSubmit = useCallback(() => {
@@ -202,24 +191,13 @@ export function TestInterface({ testId }: TestInterfaceProps) {
 
           // Restore saved answers
           if (detail.answers && detail.answers.length > 0) {
-            const restoredMcq = new Map<string, string[]>();
-            const restoredCode = new Map<string, CodeAnswer>();
-
+            const restored = new Map<string, string[]>();
             for (const ans of detail.answers) {
-              // Check if this is a coding answer
-              if (ans.code && ans.language) {
-                restoredCode.set(ans.questionId, {
-                  code: ans.code,
-                  language: ans.language as CodingLanguage,
-                });
-              }
               if (ans.selectedOptionIds && ans.selectedOptionIds.length > 0) {
-                restoredMcq.set(ans.questionId, ans.selectedOptionIds);
+                restored.set(ans.questionId, ans.selectedOptionIds);
               }
             }
-
-            setAnswers(restoredMcq);
-            setCodeAnswers(restoredCode);
+            setAnswers(restored);
           }
         }
       } catch {
@@ -284,14 +262,11 @@ export function TestInterface({ testId }: TestInterfaceProps) {
 
       saveTimeoutRef.current = setTimeout(async () => {
         const saves = new Map(pendingSavesRef.current);
-        const codeSaves = new Map(pendingCodeSavesRef.current);
         pendingSavesRef.current.clear();
-        pendingCodeSavesRef.current.clear();
 
         setSaveStatus("saving");
 
         try {
-          // Save all pending MCQ answers
           for (const [qId, optIds] of saves) {
             const res = await fetch(`/api/attempts/${attemptId}/answers`, {
               method: "PUT",
@@ -304,94 +279,6 @@ export function TestInterface({ testId }: TestInterfaceProps) {
 
             if (!res.ok) {
               console.error("Failed to save answer for question:", qId);
-              setSaveStatus("error");
-              return;
-            }
-          }
-
-          // Save all pending code answers
-          for (const [qId, codeAns] of codeSaves) {
-            const res = await fetch(`/api/attempts/${attemptId}/answers`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                questionId: qId,
-                selectedOptionIds: [],
-                code: codeAns.code,
-                language: codeAns.language,
-              }),
-            });
-
-            if (!res.ok) {
-              console.error("Failed to save code answer for question:", qId);
-              setSaveStatus("error");
-              return;
-            }
-          }
-
-          setSaveStatus("saved");
-
-          // Reset back to idle after 2s
-          setTimeout(() => setSaveStatus("idle"), 2000);
-        } catch {
-          setSaveStatus("error");
-        }
-      }, 2000);
-    },
-    [attemptId]
-  );
-
-  // ----------------------------------------------------------
-  // Auto-save (Code)
-  // ----------------------------------------------------------
-
-  const saveCodeAnswer = useCallback(
-    (questionId: string, code: string, language: CodingLanguage) => {
-      if (!attemptId) return;
-
-      pendingCodeSavesRef.current.set(questionId, { code, language });
-
-      // Clear previous timeout
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-
-      saveTimeoutRef.current = setTimeout(async () => {
-        const saves = new Map(pendingSavesRef.current);
-        const codeSaves = new Map(pendingCodeSavesRef.current);
-        pendingSavesRef.current.clear();
-        pendingCodeSavesRef.current.clear();
-
-        setSaveStatus("saving");
-
-        try {
-          for (const [qId, optIds] of saves) {
-            const res = await fetch(`/api/attempts/${attemptId}/answers`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                questionId: qId,
-                selectedOptionIds: optIds,
-              }),
-            });
-            if (!res.ok) {
-              setSaveStatus("error");
-              return;
-            }
-          }
-
-          for (const [qId, codeAns] of codeSaves) {
-            const res = await fetch(`/api/attempts/${attemptId}/answers`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                questionId: qId,
-                selectedOptionIds: [],
-                code: codeAns.code,
-                language: codeAns.language,
-              }),
-            });
-            if (!res.ok) {
               setSaveStatus("error");
               return;
             }
@@ -425,7 +312,7 @@ export function TestInterface({ testId }: TestInterfaceProps) {
       setAnswers((prev) => {
         const next = new Map(prev);
 
-        if (questionType === "SINGLE_SELECT") {
+        if (questionType === "SINGLE_SELECT" || questionType === "CODING") {
           next.set(questionId, [optionId]);
         } else {
           // MULTI_SELECT: toggle
@@ -450,22 +337,6 @@ export function TestInterface({ testId }: TestInterfaceProps) {
       });
     },
     [saveAnswer]
-  );
-
-  // ----------------------------------------------------------
-  // Code change handler
-  // ----------------------------------------------------------
-
-  const handleCodeChange = useCallback(
-    (questionId: string, code: string, language: CodingLanguage) => {
-      setCodeAnswers((prev) => {
-        const next = new Map(prev);
-        next.set(questionId, { code, language });
-        return next;
-      });
-      saveCodeAnswer(questionId, code, language);
-    },
-    [saveCodeAnswer]
   );
 
   // ----------------------------------------------------------
@@ -511,21 +382,6 @@ export function TestInterface({ testId }: TestInterfaceProps) {
           });
         }
         pendingSavesRef.current.clear();
-
-        // Save any remaining pending code answers immediately
-        for (const [qId, codeAns] of pendingCodeSavesRef.current) {
-          await fetch(`/api/attempts/${attemptId}/answers`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              questionId: qId,
-              selectedOptionIds: [],
-              code: codeAns.code,
-              language: codeAns.language,
-            }),
-          });
-        }
-        pendingCodeSavesRef.current.clear();
 
         const res = await fetch(`/api/tests/${testId}/submit`, {
           method: "POST",
@@ -576,21 +432,11 @@ export function TestInterface({ testId }: TestInterfaceProps) {
 
   const currentQuestion = questions[currentIndex];
 
-  // Count answered: MCQ answers + code answers
-  const answeredCount =
-    answers.size +
-    Array.from(codeAnswers.values()).filter((ca) => ca.code.trim().length > 0)
-      .length;
+  const answeredCount = answers.size;
   const unansweredCount = questions.length - answeredCount;
   const flaggedCount = flagged.size;
 
-  const isQuestionAnswered = (q: Question) => {
-    if (q.questionType === "CODING") {
-      const ca = codeAnswers.get(q.id);
-      return ca ? ca.code.trim().length > 0 : false;
-    }
-    return answers.has(q.id);
-  };
+  const isQuestionAnswered = (q: Question) => answers.has(q.id);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -798,9 +644,20 @@ export function TestInterface({ testId }: TestInterfaceProps) {
                 </div>
 
                 {/* Question text */}
-                <QuestionText className="text-xl font-semibold leading-relaxed mb-4 text-foreground [&_p]:text-xl [&_p]:font-semibold">
-                  {currentQuestion.questionText}
-                </QuestionText>
+                {currentQuestion.questionType === "CODING" ? (
+                  <div className="mb-6">
+                    <CodeTextarea
+                      value={currentQuestion.questionText}
+                      readOnly
+                      rows={Math.min(20, currentQuestion.questionText.split("\n").length + 2)}
+                      label="question"
+                    />
+                  </div>
+                ) : (
+                  <QuestionText className="text-xl font-semibold leading-relaxed mb-4 text-foreground [&_p]:text-xl [&_p]:font-semibold">
+                    {currentQuestion.questionText}
+                  </QuestionText>
+                )}
 
                 {/* Question image */}
                 {currentQuestion.imageUrl && (
@@ -813,7 +670,7 @@ export function TestInterface({ testId }: TestInterfaceProps) {
                 )}
 
                 {/* MCQ Options */}
-                {currentQuestion.questionType !== "CODING" && (
+                {currentQuestion.options.length > 0 && (
                   <>
                     <div className="space-y-2.5">
                       {currentQuestion.options.map((option, optIdx) => {
@@ -887,26 +744,6 @@ export function TestInterface({ testId }: TestInterfaceProps) {
                   </>
                 )}
 
-                {/* Code Editor for CODING questions */}
-                {currentQuestion.questionType === "CODING" && attemptId && (
-                  <CodeEditor
-                    attemptId={attemptId}
-                    questionId={currentQuestion.id}
-                    sampleTestCases={
-                      currentQuestion.testCases?.map((tc) => ({
-                        input: tc.input,
-                        expectedOutput: tc.expectedOutput,
-                      })) || []
-                    }
-                    initialCode={codeAnswers.get(currentQuestion.id)?.code}
-                    initialLanguage={
-                      codeAnswers.get(currentQuestion.id)?.language
-                    }
-                    onCodeChange={(code, language) =>
-                      handleCodeChange(currentQuestion.id, code, language)
-                    }
-                  />
-                )}
               </div>
             )}
           </ScrollArea>

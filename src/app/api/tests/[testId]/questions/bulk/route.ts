@@ -9,13 +9,11 @@ const optionSchema = z.object({
 });
 
 const bulkQuestionSchema = z.object({
-  questionText: z.string().min(1, "Question text is required"),
+  questionText: z.string().min(1),
   imageUrl: z.string().optional(),
-  questionType: z.enum(["SINGLE_SELECT", "MULTI_SELECT"]),
-  options: z.array(optionSchema).min(2, "At least 2 options are required"),
-  correctOptionIds: z
-    .array(z.string())
-    .min(1, "At least 1 correct option is required"),
+  questionType: z.enum(["SINGLE_SELECT", "MULTI_SELECT", "CODING"]),
+  options: z.array(optionSchema).min(2),
+  correctOptionIds: z.array(z.string()).min(1),
   marks: z.number().int().positive(),
   negativeMarks: z.number().min(0),
   explanation: z.string().optional(),
@@ -85,7 +83,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
     const startOrder = (lastQuestion?.order ?? -1) + 1;
 
-    // Create all questions and recalculate total marks in a transaction
     const result = await prisma.$transaction(async (tx) => {
       await tx.question.createMany({
         data: questions.map((q, idx) => ({
@@ -109,10 +106,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       });
       const totalMarks = allQuestions.reduce((sum, q) => sum + q.marks, 0);
 
-      await tx.test.update({
-        where: { id: testId },
-        data: { totalMarks },
-      });
+      await tx.test.update({ where: { id: testId }, data: { totalMarks } });
 
       return { created: questions.length, totalMarks };
     });

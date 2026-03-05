@@ -165,14 +165,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       const data = legacyParsed.data;
       const qType = data.questionType || "SINGLE_SELECT";
 
-      if (qType === "CODING") {
-        if (!data.testCases || data.testCases.length === 0) {
-          return NextResponse.json(
-            { error: "At least 1 test case is required for coding questions" },
-            { status: 400 }
-          );
-        }
-      } else {
+      if (qType !== "CODING") {
         if (!data.options || data.options.length < 2) {
           return NextResponse.json(
             { error: "At least 2 options are required" },

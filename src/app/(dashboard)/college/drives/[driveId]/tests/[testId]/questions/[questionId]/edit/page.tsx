@@ -32,23 +32,10 @@ interface Option {
   text: string;
 }
 
-interface TestCaseInput {
-  id: string;
-  input: string;
-  expectedOutput: string;
-  isSample: boolean;
-}
-
 let optionCounter = 0;
 function generateOptionId() {
   optionCounter += 1;
   return `opt_${Date.now()}_${optionCounter}`;
-}
-
-let testCaseCounter = 0;
-function generateTestCaseId() {
-  testCaseCounter += 1;
-  return `tc_${Date.now()}_${testCaseCounter}`;
 }
 
 export default function EditQuestionPage() {
@@ -68,10 +55,6 @@ export default function EditQuestionPage() {
   const [marks, setMarks] = useState(1);
   const [negativeMarks, setNegativeMarks] = useState(0);
   const [explanation, setExplanation] = useState("");
-  const [testCases, setTestCases] = useState<TestCaseInput[]>([]);
-
-  const isCoding = questionType === "CODING";
-
   useEffect(() => {
     async function fetchQuestion() {
       try {
@@ -87,28 +70,13 @@ export default function EditQuestionPage() {
         setMarks(q.marks);
         setNegativeMarks(q.negativeMarks ?? 0);
         setExplanation(q.explanation ?? "");
-
-        if (q.questionType === "CODING") {
-          setTestCases(
-            (q.testCases ?? []).map((tc: { id: string; input: string; expectedOutput: string; isSample: boolean }) => ({
-              id: tc.id || generateTestCaseId(),
-              input: tc.input,
-              expectedOutput: tc.expectedOutput,
-              isSample: tc.isSample,
-            }))
-          );
-          if ((q.testCases ?? []).length === 0) {
-            setTestCases([{ id: generateTestCaseId(), input: "", expectedOutput: "", isSample: true }]);
-          }
-        } else {
-          setOptions(
-            (q.options ?? []).map((o: { id: string; text: string }) => ({
-              id: o.id,
-              text: o.text,
-            }))
-          );
-          setCorrectOptionIds(q.correctOptionIds ?? []);
-        }
+        setOptions(
+          (q.options ?? []).map((o: { id: string; text: string }) => ({
+            id: o.id,
+            text: o.text,
+          }))
+        );
+        setCorrectOptionIds(q.correctOptionIds ?? []);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to load question");
         router.push(`/college/drives/${params.driveId}/tests/${params.testId}`);
@@ -136,25 +104,6 @@ export default function EditQuestionPage() {
     setOptions((prev) => prev.map((o) => (o.id === id ? { ...o, text } : o)));
   }
 
-  function addTestCase() {
-    setTestCases((prev) => [
-      ...prev,
-      { id: generateTestCaseId(), input: "", expectedOutput: "", isSample: false },
-    ]);
-  }
-
-  function removeTestCase(id: string) {
-    if (testCases.length <= 1) {
-      toast.error("At least 1 test case is required");
-      return;
-    }
-    setTestCases((prev) => prev.filter((tc) => tc.id !== id));
-  }
-
-  function updateTestCase(id: string, field: keyof TestCaseInput, value: string | boolean) {
-    setTestCases((prev) => prev.map((tc) => (tc.id === id ? { ...tc, [field]: value } : tc)));
-  }
-
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
@@ -163,49 +112,7 @@ export default function EditQuestionPage() {
       return;
     }
 
-    if (isCoding) {
-      const validTestCases = testCases.filter((tc) => tc.expectedOutput.trim());
-      if (validTestCases.length === 0) {
-        toast.error("At least 1 test case with expected output is required");
-        return;
-      }
-
-      setIsSubmitting(true);
-      try {
-        const res = await fetch(
-          `/api/tests/${params.testId}/questions/${params.questionId}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              questionText,
-              imageUrl: imageUrl || null,
-              marks,
-              negativeMarks,
-              explanation: explanation || null,
-              testCases: validTestCases.map((tc, idx) => ({
-                input: tc.input,
-                expectedOutput: tc.expectedOutput,
-                isSample: tc.isSample,
-                order: idx,
-              })),
-            }),
-          }
-        );
-
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(error.error || "Failed to update question");
-        }
-
-        toast.success("Question updated successfully");
-        router.push(`/college/drives/${params.driveId}/tests/${params.testId}`);
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Something went wrong");
-      } finally {
-        setIsSubmitting(false);
-      }
-    } else {
+    {
       const filledOptions = options.filter((o) => o.text.trim());
       if (filledOptions.length < 2) {
         toast.error("At least 2 options with text are required");
@@ -349,11 +256,7 @@ export default function EditQuestionPage() {
                   id="questionText"
                   value={questionText}
                   onChange={(e) => setQuestionText(e.target.value)}
-                  placeholder={
-                    isCoding
-                      ? "Describe the coding problem... (supports Markdown)"
-                      : "Enter your question here... (supports Markdown)"
-                  }
+                  placeholder="Enter your question here... (supports Markdown)"
                   rows={4}
                   className="font-mono text-sm"
                   required
@@ -409,25 +312,23 @@ export default function EditQuestionPage() {
               )}
             </div>
 
-            {/* Question Type — read-only display for coding, editable for MCQ */}
-            {!isCoding && (
-              <div className="space-y-2">
-                <Label htmlFor="questionType">Question Type</Label>
-                <Select value={questionType} onValueChange={(v) => { setQuestionType(v); setCorrectOptionIds([]); }}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SINGLE_SELECT">Single Select (Radio)</SelectItem>
-                    <SelectItem value="MULTI_SELECT">Multi Select (Checkbox)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            {/* Question Type */}
+            <div className="space-y-2">
+              <Label htmlFor="questionType">Question Type</Label>
+              <Select value={questionType} onValueChange={(v) => { setQuestionType(v); setCorrectOptionIds([]); }}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SINGLE_SELECT">Single Select (Radio)</SelectItem>
+                  <SelectItem value="MULTI_SELECT">Multi Select (Checkbox)</SelectItem>
+                  <SelectItem value="CODING">Coding (Single Select)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            {/* MCQ Options */}
-            {!isCoding && (
-              <div className="space-y-4">
+            {/* Options */}
+            <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label>
                     Options <span className="text-destructive">*</span>
@@ -438,7 +339,7 @@ export default function EditQuestionPage() {
                   </Button>
                 </div>
 
-                {questionType === "SINGLE_SELECT" ? (
+                {questionType !== "MULTI_SELECT" ? (
                   <RadioGroup
                     value={correctOptionIds[0] || ""}
                     onValueChange={(v) => setCorrectOptionIds([v])}
@@ -500,91 +401,11 @@ export default function EditQuestionPage() {
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  {questionType === "SINGLE_SELECT"
-                    ? "Select the radio button next to the correct answer."
-                    : "Check the boxes next to all correct answers."}
+                  {questionType === "MULTI_SELECT"
+                    ? "Check the boxes next to all correct answers."
+                    : "Select the radio button next to the correct answer."}
                 </p>
               </div>
-            )}
-
-            {/* Test Cases for Coding */}
-            {isCoding && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Label>
-                    Test Cases <span className="text-destructive">*</span>
-                  </Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addTestCase}>
-                    <Plus className="size-4" />
-                    Add Test Case
-                  </Button>
-                </div>
-
-                {testCases.map((tc, index) => (
-                  <Card key={tc.id} className="border-dashed">
-                    <CardContent className="pt-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Test Case {index + 1}</span>
-                        <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-2">
-                            <Checkbox
-                              id={`sample-${tc.id}`}
-                              checked={tc.isSample}
-                              onCheckedChange={(checked) =>
-                                updateTestCase(tc.id, "isSample", checked as boolean)
-                              }
-                            />
-                            <Label
-                              htmlFor={`sample-${tc.id}`}
-                              className="text-xs text-muted-foreground"
-                            >
-                              Sample (visible to students)
-                            </Label>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeTestCase(tc.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs">Input</Label>
-                        <Textarea
-                          value={tc.input}
-                          onChange={(e) => updateTestCase(tc.id, "input", e.target.value)}
-                          placeholder="Enter input (can be empty)"
-                          rows={2}
-                          className="font-mono text-sm"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs">
-                          Expected Output <span className="text-destructive">*</span>
-                        </Label>
-                        <Textarea
-                          value={tc.expectedOutput}
-                          onChange={(e) => updateTestCase(tc.id, "expectedOutput", e.target.value)}
-                          placeholder="Enter expected output"
-                          rows={2}
-                          className="font-mono text-sm"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                <p className="text-xs text-muted-foreground">
-                  Mark test cases as &ldquo;Sample&rdquo; to make them visible to students.
-                </p>
-              </div>
-            )}
 
             {/* Marks */}
             <div className="grid gap-4 sm:grid-cols-2">

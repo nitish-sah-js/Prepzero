@@ -44,8 +44,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Clock, Loader2, Plus, Trash2, BarChart3, Upload, Eye, X, Search, Users, BookOpen, FileUp, Pencil } from "lucide-react";
-import { parseEligibilityCSV } from "@/lib/csv-parser";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ArrowLeft, Clock, Loader2, Plus, Trash2, BarChart3, Upload, Eye, X, Search, Users, BookOpen, FileUp, Pencil, Download, ChevronDown } from "lucide-react";
+import { parseEligibilityCSV, generateCSVTemplate } from "@/lib/csv-parser";
 import { fileToCSVText } from "@/lib/spreadsheet";
 
 function toDatetimeLocal(iso: string): string {
@@ -803,21 +810,59 @@ export default function TestDetailPage() {
                 Upload a CSV with columns: <span className="font-mono">name, usn, email, department</span>.
                 Existing students are matched by USN/email. New students are created with their USN as the default password.
               </p>
-              <label className={`inline-flex w-fit items-center gap-2 rounded-md border px-4 h-9 text-sm font-medium cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors ${isProcessingCSV ? "opacity-50 pointer-events-none" : ""}`}>
-                {isProcessingCSV ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Upload className="size-4" />
-                )}
-                {isProcessingCSV ? "Processing..." : "Upload CSV / Excel"}
-                <input
-                  type="file"
-                  accept=".csv,.xlsx,.xls"
-                  className="hidden"
-                  onChange={handleCSVUpload}
-                  disabled={isProcessingCSV}
-                />
-              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const csv = `name,usn,email,department\nJohn Doe,1AB21CS001,john@example.com,CS\nJane Smith,1AB21EC002,jane@example.com,EC`;
+                    const blob = new Blob([csv], { type: "text/csv" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "eligibility_template.csv";
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-md border px-3 h-8 text-xs font-medium cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <Download className="size-3.5" />
+                  Template (.csv)
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const { utils, writeFile } = await import("xlsx");
+                    const rows = [
+                      ["name", "usn", "email", "department"],
+                      ["John Doe", "1AB21CS001", "john@example.com", "CS"],
+                      ["Jane Smith", "1AB21EC002", "jane@example.com", "EC"],
+                    ];
+                    const ws = utils.aoa_to_sheet(rows);
+                    const wb = utils.book_new();
+                    utils.book_append_sheet(wb, ws, "Eligibility");
+                    writeFile(wb, "eligibility_template.xlsx");
+                  }}
+                  className="inline-flex items-center gap-2 rounded-md border px-3 h-8 text-xs font-medium cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  <Download className="size-3.5" />
+                  Template (.xlsx)
+                </button>
+                <label className={`inline-flex w-fit items-center gap-2 rounded-md border px-4 h-9 text-sm font-medium cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors ${isProcessingCSV ? "opacity-50 pointer-events-none" : ""}`}>
+                  {isProcessingCSV ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Upload className="size-4" />
+                  )}
+                  {isProcessingCSV ? "Processing..." : "Upload CSV / Excel"}
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    className="hidden"
+                    onChange={handleCSVUpload}
+                    disabled={isProcessingCSV}
+                  />
+                </label>
+              </div>
             </div>
 
             {/* CSV Import Results */}
@@ -967,14 +1012,55 @@ export default function TestDetailPage() {
                 Import from Library
               </Link>
             </Button>
-            <Button variant="outline" asChild>
-              <Link
-                href={`/college/drives/${params.driveId}/tests/${params.testId}/questions/upload`}
-              >
-                <Upload />
-                Upload CSV
-              </Link>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Upload className="size-4" />
+                  Upload CSV / Excel
+                  <ChevronDown className="size-4 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => {
+                    const csv = generateCSVTemplate();
+                    const blob = new Blob([csv], { type: "text/csv" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "questions_template.csv";
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  <Download className="size-4" />
+                  Download Template (.csv)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    const { utils, writeFile } = await import("xlsx");
+                    const csv = generateCSVTemplate();
+                    const rows = csv.trim().split("\n").map((line) =>
+                      line.split(",").map((cell) => cell.replace(/^"|"$/g, "").replace(/""/g, '"'))
+                    );
+                    const ws = utils.aoa_to_sheet(rows);
+                    const wb = utils.book_new();
+                    utils.book_append_sheet(wb, ws, "Questions");
+                    writeFile(wb, "questions_template.xlsx");
+                  }}
+                >
+                  <Download className="size-4" />
+                  Download Template (.xlsx)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href={`/college/drives/${params.driveId}/tests/${params.testId}/questions/upload`}>
+                    <Upload className="size-4" />
+                    Upload CSV / Excel
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button asChild>
               <Link
                 href={`/college/drives/${params.driveId}/tests/${params.testId}/questions/new`}

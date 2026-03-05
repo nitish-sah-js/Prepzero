@@ -63,7 +63,7 @@ function generateTestCaseId() {
   return `tc_${Date.now()}_${testCaseCounter}`;
 }
 
-export default function EditLibraryQuestionPage() {
+export default function CollegeEditLibraryQuestionPage() {
   const params = useParams<{ questionId: string }>();
   const router = useRouter();
 
@@ -81,7 +81,6 @@ export default function EditLibraryQuestionPage() {
   const [category, setCategory] = useState("");
   const [difficulty, setDifficulty] = useState("MEDIUM");
   const [categories, setCategories] = useState<string[]>([]);
-
   const [testCases, setTestCases] = useState<TestCaseData[]>([]);
 
   const isCoding = questionType === "CODING";
@@ -106,22 +105,15 @@ export default function EditLibraryQuestionPage() {
         setExplanation(q.explanation || "");
         setCategory(q.category);
         setDifficulty(q.difficulty);
-
-        if (q.testCases) {
-          setTestCases(q.testCases);
-        }
-
-        if (catRes.ok) {
-          setCategories(await catRes.json());
-        }
+        if (q.testCases) setTestCases(q.testCases);
+        if (catRes.ok) setCategories(await catRes.json());
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Failed to load question");
-        router.push("/admin/library");
+        router.push("/college/library");
       } finally {
         setIsLoading(false);
       }
     }
-
     fetchData();
   }, [params.questionId, router]);
 
@@ -130,10 +122,7 @@ export default function EditLibraryQuestionPage() {
   }
 
   function removeOption(id: string) {
-    if (options.length <= 2) {
-      toast.error("At least 2 options are required");
-      return;
-    }
+    if (options.length <= 2) { toast.error("At least 2 options are required"); return; }
     setOptions((prev) => prev.filter((o) => o.id !== id));
     setCorrectOptionIds((prev) => prev.filter((cid) => cid !== id));
   }
@@ -150,40 +139,22 @@ export default function EditLibraryQuestionPage() {
   }
 
   function removeTestCase(id: string) {
-    if (testCases.length <= 1) {
-      toast.error("At least 1 test case is required");
-      return;
-    }
+    if (testCases.length <= 1) { toast.error("At least 1 test case is required"); return; }
     setTestCases((prev) => prev.filter((tc) => tc.id !== id));
   }
 
   function updateTestCase(id: string, field: string, value: string | boolean) {
-    setTestCases((prev) =>
-      prev.map((tc) => (tc.id === id ? { ...tc, [field]: value } : tc))
-    );
+    setTestCases((prev) => prev.map((tc) => (tc.id === id ? { ...tc, [field]: value } : tc)));
   }
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-
-    if (!questionText.trim()) {
-      toast.error("Question text is required");
-      return;
-    }
-    if (!category.trim()) {
-      toast.error("Category is required");
-      return;
-    }
+    if (!questionText.trim()) { toast.error("Question text is required"); return; }
+    if (!category.trim()) { toast.error("Category is required"); return; }
 
     setIsSaving(true);
-
     const body: Record<string, unknown> = {
-      questionText,
-      questionType,
-      category,
-      difficulty,
-      marks,
-      negativeMarks,
+      questionText, questionType, category, difficulty, marks, negativeMarks,
       explanation: explanation || undefined,
     };
 
@@ -195,23 +166,12 @@ export default function EditLibraryQuestionPage() {
         return;
       }
       body.testCases = validTestCases.map((tc, idx) => ({
-        input: tc.input,
-        expectedOutput: tc.expectedOutput,
-        isSample: tc.isSample,
-        order: idx,
+        input: tc.input, expectedOutput: tc.expectedOutput, isSample: tc.isSample, order: idx,
       }));
     } else {
       const filledOptions = options.filter((o) => o.text.trim());
-      if (filledOptions.length < 2) {
-        toast.error("At least 2 options with text are required");
-        setIsSaving(false);
-        return;
-      }
-      if (correctOptionIds.length === 0) {
-        toast.error("Please select at least one correct option");
-        setIsSaving(false);
-        return;
-      }
+      if (filledOptions.length < 2) { toast.error("At least 2 options with text are required"); setIsSaving(false); return; }
+      if (correctOptionIds.length === 0) { toast.error("Please select at least one correct option"); setIsSaving(false); return; }
       body.options = filledOptions;
       body.correctOptionIds = correctOptionIds;
     }
@@ -222,14 +182,9 @@ export default function EditLibraryQuestionPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.error || "Failed to update question");
-      }
-
+      if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Failed to update"); }
       toast.success("Question updated");
-      router.push("/admin/library");
+      router.push("/college/library");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
@@ -240,12 +195,10 @@ export default function EditLibraryQuestionPage() {
   async function handleDelete() {
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/library/questions/${params.questionId}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/library/questions/${params.questionId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete question");
       toast.success("Question deleted");
-      router.push("/admin/library");
+      router.push("/college/library");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong");
     } finally {
@@ -268,7 +221,7 @@ export default function EditLibraryQuestionPage() {
     <div className="space-y-6">
       <div>
         <Button variant="ghost" size="sm" asChild className="mb-2">
-          <Link href="/admin/library">
+          <Link href="/college/library">
             <ArrowLeft />
             Back to Library
           </Link>
@@ -281,9 +234,7 @@ export default function EditLibraryQuestionPage() {
         <CardHeader>
           <CardTitle>Question Details</CardTitle>
           <CardDescription>
-            {isCoding
-              ? "Update the coding challenge and test cases."
-              : "Update the question, options, and correct answer(s)."}
+            {isCoding ? "Update the coding challenge and test cases." : "Update the question, options, and correct answer(s)."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -303,9 +254,7 @@ export default function EditLibraryQuestionPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>
-                  Category <span className="text-destructive">*</span>
-                </Label>
+                <Label>Category <span className="text-destructive">*</span></Label>
                 <Input
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
@@ -314,17 +263,13 @@ export default function EditLibraryQuestionPage() {
                   required
                 />
                 <datalist id="category-suggestions">
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat} />
-                  ))}
+                  {categories.map((cat) => <option key={cat} value={cat} />)}
                 </datalist>
               </div>
               <div className="space-y-2">
                 <Label>Difficulty</Label>
                 <Select value={difficulty} onValueChange={setDifficulty}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="EASY">Easy</SelectItem>
                     <SelectItem value="MEDIUM">Medium</SelectItem>
@@ -336,16 +281,8 @@ export default function EditLibraryQuestionPage() {
 
             <div className="space-y-2">
               <Label>Question Type</Label>
-              <Select
-                value={questionType}
-                onValueChange={(v) => {
-                  setQuestionType(v);
-                  setCorrectOptionIds([]);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={questionType} onValueChange={(v) => { setQuestionType(v); setCorrectOptionIds([]); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="SINGLE_SELECT">Single Select (Radio)</SelectItem>
                   <SelectItem value="MULTI_SELECT">Multi Select (Checkbox)</SelectItem>
@@ -358,39 +295,18 @@ export default function EditLibraryQuestionPage() {
             {!isCoding && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>
-                    Options <span className="text-destructive">*</span>
-                  </Label>
+                  <Label>Options <span className="text-destructive">*</span></Label>
                   <Button type="button" variant="outline" size="sm" onClick={addOption}>
-                    <Plus className="size-4" />
-                    Add Option
+                    <Plus className="size-4" />Add Option
                   </Button>
                 </div>
-
                 {questionType === "SINGLE_SELECT" ? (
-                  <RadioGroup
-                    value={correctOptionIds[0] || ""}
-                    onValueChange={(id) => setCorrectOptionIds([id])}
-                    className="space-y-3"
-                  >
+                  <RadioGroup value={correctOptionIds[0] || ""} onValueChange={(id) => setCorrectOptionIds([id])} className="space-y-3">
                     {options.map((option, index) => (
                       <div key={option.id} className="flex items-center gap-3">
                         <RadioGroupItem value={option.id} id={`radio-${option.id}`} />
-                        <Input
-                          className="flex-1"
-                          placeholder={`Option ${index + 1}`}
-                          value={option.text}
-                          onChange={(e) => updateOptionText(option.id, e.target.value)}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeOption(option.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                        <Input className="flex-1" placeholder={`Option ${index + 1}`} value={option.text} onChange={(e) => updateOptionText(option.id, e.target.value)} />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeOption(option.id)} className="text-destructive hover:text-destructive"><Trash2 className="size-4" /></Button>
                       </div>
                     ))}
                   </RadioGroup>
@@ -398,32 +314,14 @@ export default function EditLibraryQuestionPage() {
                   <div className="space-y-3">
                     {options.map((option, index) => (
                       <div key={option.id} className="flex items-center gap-3">
-                        <Checkbox
-                          id={`check-${option.id}`}
-                          checked={correctOptionIds.includes(option.id)}
+                        <Checkbox id={`check-${option.id}`} checked={correctOptionIds.includes(option.id)}
                           onCheckedChange={(checked) => {
-                            if (checked) {
-                              setCorrectOptionIds((prev) => [...prev, option.id]);
-                            } else {
-                              setCorrectOptionIds((prev) => prev.filter((id) => id !== option.id));
-                            }
+                            if (checked) setCorrectOptionIds((prev) => [...prev, option.id]);
+                            else setCorrectOptionIds((prev) => prev.filter((id) => id !== option.id));
                           }}
                         />
-                        <Input
-                          className="flex-1"
-                          placeholder={`Option ${index + 1}`}
-                          value={option.text}
-                          onChange={(e) => updateOptionText(option.id, e.target.value)}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeOption(option.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                        <Input className="flex-1" placeholder={`Option ${index + 1}`} value={option.text} onChange={(e) => updateOptionText(option.id, e.target.value)} />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeOption(option.id)} className="text-destructive hover:text-destructive"><Trash2 className="size-4" /></Button>
                       </div>
                     ))}
                   </div>
@@ -435,15 +333,11 @@ export default function EditLibraryQuestionPage() {
             {isCoding && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <Label>
-                    Test Cases <span className="text-destructive">*</span>
-                  </Label>
+                  <Label>Test Cases <span className="text-destructive">*</span></Label>
                   <Button type="button" variant="outline" size="sm" onClick={addTestCase}>
-                    <Plus className="size-4" />
-                    Add Test Case
+                    <Plus className="size-4" />Add Test Case
                   </Button>
                 </div>
-
                 {testCases.map((tc, index) => (
                   <Card key={tc.id} className="border-dashed">
                     <CardContent className="pt-4 space-y-3">
@@ -451,47 +345,23 @@ export default function EditLibraryQuestionPage() {
                         <span className="text-sm font-medium">Test Case {index + 1}</span>
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-2">
-                            <Checkbox
-                              id={`sample-${tc.id}`}
-                              checked={tc.isSample}
-                              onCheckedChange={(checked) =>
-                                updateTestCase(tc.id, "isSample", checked as boolean)
-                              }
+                            <Checkbox id={`sample-${tc.id}`} checked={tc.isSample}
+                              onCheckedChange={(checked) => updateTestCase(tc.id, "isSample", checked as boolean)}
                             />
-                            <Label htmlFor={`sample-${tc.id}`} className="text-xs text-muted-foreground">
-                              Sample
-                            </Label>
+                            <Label htmlFor={`sample-${tc.id}`} className="text-xs text-muted-foreground">Sample</Label>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeTestCase(tc.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeTestCase(tc.id)} className="text-destructive hover:text-destructive">
                             <Trash2 className="size-4" />
                           </Button>
                         </div>
                       </div>
                       <div className="space-y-2">
                         <Label className="text-xs">Input</Label>
-                        <CodeTextarea
-                          value={tc.input}
-                          onChange={(v) => updateTestCase(tc.id, "input", v)}
-                          label="stdin"
-                          rows={2}
-                        />
+                        <CodeTextarea value={tc.input} onChange={(v) => updateTestCase(tc.id, "input", v)} label="stdin" rows={2} />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-xs">
-                          Expected Output <span className="text-destructive">*</span>
-                        </Label>
-                        <CodeTextarea
-                          value={tc.expectedOutput}
-                          onChange={(v) => updateTestCase(tc.id, "expectedOutput", v)}
-                          label="stdout"
-                          rows={2}
-                        />
+                        <Label className="text-xs">Expected Output <span className="text-destructive">*</span></Label>
+                        <CodeTextarea value={tc.expectedOutput} onChange={(v) => updateTestCase(tc.id, "expectedOutput", v)} label="stdout" rows={2} />
                       </div>
                     </CardContent>
                   </Card>
@@ -502,35 +372,17 @@ export default function EditLibraryQuestionPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="marks">Marks</Label>
-                <Input
-                  id="marks"
-                  type="number"
-                  min={1}
-                  value={marks}
-                  onChange={(e) => setMarks(parseInt(e.target.value) || 1)}
-                />
+                <Input id="marks" type="number" min={1} value={marks} onChange={(e) => setMarks(parseInt(e.target.value) || 1)} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="negativeMarks">Negative Marks</Label>
-                <Input
-                  id="negativeMarks"
-                  type="number"
-                  min={0}
-                  step="0.25"
-                  value={negativeMarks}
-                  onChange={(e) => setNegativeMarks(parseFloat(e.target.value) || 0)}
-                />
+                <Input id="negativeMarks" type="number" min={0} step="0.25" value={negativeMarks} onChange={(e) => setNegativeMarks(parseFloat(e.target.value) || 0)} />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="explanation">Explanation (optional)</Label>
-              <Textarea
-                id="explanation"
-                value={explanation}
-                onChange={(e) => setExplanation(e.target.value)}
-                rows={3}
-              />
+              <Textarea id="explanation" value={explanation} onChange={(e) => setExplanation(e.target.value)} rows={3} />
             </div>
 
             <div className="flex gap-3 pt-4">
@@ -539,13 +391,12 @@ export default function EditLibraryQuestionPage() {
                 Save Changes
               </Button>
               <Button type="button" variant="outline" asChild>
-                <Link href="/admin/library">Cancel</Link>
+                <Link href="/college/library">Cancel</Link>
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button type="button" variant="destructive">
-                    <Trash2 />
-                    Delete
+                    <Trash2 />Delete
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -557,11 +408,7 @@ export default function EditLibraryQuestionPage() {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleDelete}
-                      disabled={isDeleting}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
+                    <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                       {isDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
                       Delete
                     </AlertDialogAction>

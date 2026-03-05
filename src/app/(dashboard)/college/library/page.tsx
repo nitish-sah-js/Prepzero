@@ -38,7 +38,19 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Loader2, Search, BookOpen } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import Link from "next/link";
+import { Loader2, Search, BookOpen, Pencil, Trash2 } from "lucide-react";
 
 interface LibraryQuestion {
   id: string;
@@ -76,6 +88,7 @@ export default function CollegeLibraryPage() {
   const [data, setData] = useState<PaginatedResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [categories, setCategories] = useState<string[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Transient UI state — not URL-synced
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -166,6 +179,20 @@ export default function CollegeLibraryPage() {
       }
       return next;
     });
+  }
+
+  async function handleDelete(questionId: string) {
+    setDeletingId(questionId);
+    try {
+      const res = await fetch(`/api/library/questions/${questionId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete question");
+      toast.success("Question deleted");
+      fetchQuestions();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Something went wrong");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   async function handleImport() {
@@ -336,12 +363,13 @@ export default function CollegeLibraryPage() {
                   <TableHead>Category</TableHead>
                   <TableHead>Difficulty</TableHead>
                   <TableHead className="text-center">Marks</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {!data || data.questions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                       No questions found in the library.
                     </TableCell>
                   </TableRow>
@@ -377,6 +405,41 @@ export default function CollegeLibraryPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-center">{q.marks}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link href={`/college/library/${q.id}`}>
+                              <Pencil className="size-4" />
+                            </Link>
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Question</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure? This will permanently remove this question from the library.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(q.id)}
+                                  disabled={deletingId === q.id}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  {deletingId === q.id && <Loader2 className="mr-2 size-4 animate-spin" />}
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}

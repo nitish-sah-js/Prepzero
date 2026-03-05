@@ -45,15 +45,27 @@ export default function LibraryBulkUploadPage() {
   const [questions, setQuestions] = useState<LibraryCSVQuestion[]>([]);
   const [errors, setErrors] = useState<CSVParseError[]>([]);
 
-  function handleDownloadTemplate() {
+  async function handleDownloadTemplate(format: "csv" | "xlsx") {
     const csv = generateLibraryCSVTemplate();
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "library_questions_template.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+
+    if (format === "xlsx") {
+      const { utils, writeFile } = await import("xlsx");
+      const rows = csv.trim().split("\n").map((line) =>
+        line.split(",").map((cell) => cell.replace(/^"|"$/g, "").replace(/""/g, '"'))
+      );
+      const ws = utils.aoa_to_sheet(rows);
+      const wb = utils.book_new();
+      utils.book_append_sheet(wb, ws, "Questions");
+      writeFile(wb, "library_questions_template.xlsx");
+    } else {
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "library_questions_template.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -142,10 +154,14 @@ export default function LibraryBulkUploadPage() {
               </ul>
             </div>
 
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={handleDownloadTemplate}>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="outline" onClick={() => handleDownloadTemplate("csv")}>
                 <Download />
-                Download Template
+                Template (.csv)
+              </Button>
+              <Button variant="outline" onClick={() => handleDownloadTemplate("xlsx")}>
+                <Download />
+                Template (.xlsx)
               </Button>
               <Button asChild>
                 <label className="cursor-pointer">
