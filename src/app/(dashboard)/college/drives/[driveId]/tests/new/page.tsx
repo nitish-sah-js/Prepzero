@@ -23,7 +23,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Clock, Loader2 } from "lucide-react";
+
+function formatEndTime(startLocal: string, durationMins: number): string | null {
+  if (!startLocal || durationMins <= 0) return null;
+  const end = new Date(new Date(startLocal).getTime() + durationMins * 60000);
+  return end.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
 export default function NewTestPage() {
   const params = useParams<{ driveId: string }>();
@@ -32,6 +41,10 @@ export default function NewTestPage() {
   const [status, setStatus] = useState("DRAFT");
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [resultVisibility, setResultVisibility] = useState("AFTER_SUBMISSION");
+  const [startTime, setStartTime] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState(60);
+
+  const computedEndTime = formatEndTime(startTime, durationMinutes);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -44,11 +57,15 @@ export default function NewTestPage() {
       title: formData.get("title") as string,
       description: (formData.get("description") as string) || undefined,
       instructions: (formData.get("instructions") as string) || undefined,
-      durationMinutes: parseInt(formData.get("durationMinutes") as string) || 60,
+      durationMinutes,
       passingMarks: parseInt(formData.get("passingMarks") as string) || 0,
       shuffleQuestions,
       status,
       resultVisibility,
+      startTime: startTime ? new Date(startTime).toISOString() : undefined,
+      endTime: startTime
+        ? new Date(new Date(startTime).getTime() + durationMinutes * 60000).toISOString()
+        : undefined,
     };
 
     try {
@@ -132,26 +149,44 @@ export default function NewTestPage() {
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
+                <Label htmlFor="startTime">Start Date & Time</Label>
+                <Input
+                  id="startTime"
+                  type="datetime-local"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="durationMinutes">Duration (minutes)</Label>
                 <Input
                   id="durationMinutes"
                   name="durationMinutes"
                   type="number"
                   min={1}
-                  defaultValue={60}
+                  value={durationMinutes}
+                  onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
                 />
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="passingMarks">Passing Marks</Label>
-                <Input
-                  id="passingMarks"
-                  name="passingMarks"
-                  type="number"
-                  min={0}
-                  defaultValue={0}
-                />
+            {computedEndTime && (
+              <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                <Clock className="size-4 shrink-0" />
+                Test ends at: <span className="font-medium text-foreground">{computedEndTime}</span>
               </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="passingMarks">Passing Marks</Label>
+              <Input
+                id="passingMarks"
+                name="passingMarks"
+                type="number"
+                min={0}
+                defaultValue={0}
+              />
             </div>
 
             <div className="flex items-center gap-3 pt-2">

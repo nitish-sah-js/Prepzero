@@ -44,8 +44,24 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Loader2, Plus, Trash2, BarChart3, Upload, Eye, X, Search, Users, BookOpen, FileUp } from "lucide-react";
+import { ArrowLeft, Clock, Loader2, Plus, Trash2, BarChart3, Upload, Eye, X, Search, Users, BookOpen, FileUp } from "lucide-react";
 import { parseEligibilityCSV } from "@/lib/csv-parser";
+
+function toDatetimeLocal(iso: string): string {
+  const d = new Date(iso);
+  const offset = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function formatEndTime(startLocal: string, durationMins: number): string | null {
+  if (!startLocal || durationMins <= 0) return null;
+  const end = new Date(new Date(startLocal).getTime() + durationMins * 60000);
+  return end.toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
 interface TestData {
   id: string;
@@ -58,6 +74,8 @@ interface TestData {
   passingMarks: number;
   shuffleQuestions: boolean;
   status: string;
+  startTime: string | null;
+  endTime: string | null;
   allowedDepartmentIds: string[] | null;
   allowedSemesters: number[] | null;
   allowedStudentIds: string[] | null;
@@ -119,9 +137,12 @@ export default function TestDetailPage() {
   const [passingMarks, setPassingMarks] = useState(0);
   const [shuffleQuestions, setShuffleQuestions] = useState(false);
   const [status, setStatus] = useState("DRAFT");
+  const [startTime, setStartTime] = useState("");
   const [resultVisibility, setResultVisibility] = useState("AFTER_SUBMISSION");
   const [showResults, setShowResults] = useState(false);
   const [isTogglingResults, setIsTogglingResults] = useState(false);
+
+  const computedEndTime = formatEndTime(startTime, durationMinutes);
 
   // Eligibility state
   const [departments, setDepartments] = useState<DepartmentData[]>([]);
@@ -164,6 +185,7 @@ export default function TestDetailPage() {
         setPassingMarks(testData.passingMarks);
         setShuffleQuestions(testData.shuffleQuestions);
         setStatus(testData.status);
+        setStartTime(testData.startTime ? toDatetimeLocal(testData.startTime) : "");
         setResultVisibility(testData.resultVisibility || "AFTER_SUBMISSION");
         setShowResults(testData.showResults ?? false);
 
@@ -222,6 +244,10 @@ export default function TestDetailPage() {
           passingMarks,
           shuffleQuestions,
           status,
+          startTime: startTime ? new Date(startTime).toISOString() : null,
+          endTime: startTime
+            ? new Date(new Date(startTime).getTime() + durationMinutes * 60000).toISOString()
+            : null,
           resultVisibility,
           showResults,
           allowedDepartmentIds: allowedDepartmentIds.length > 0 ? allowedDepartmentIds : null,
@@ -520,7 +546,29 @@ export default function TestDetailPage() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="passingMarks">Passing Marks</Label>
+              <Input
+                id="passingMarks"
+                type="number"
+                min={0}
+                value={passingMarks}
+                onChange={(e) =>
+                  setPassingMarks(parseInt(e.target.value) || 0)
+                }
+              />
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="startTime">Start Date & Time</Label>
+                <Input
+                  id="startTime"
+                  type="datetime-local"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="durationMinutes">Duration (minutes)</Label>
                 <Input
@@ -528,25 +576,17 @@ export default function TestDetailPage() {
                   type="number"
                   min={1}
                   value={durationMinutes}
-                  onChange={(e) =>
-                    setDurationMinutes(parseInt(e.target.value) || 60)
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="passingMarks">Passing Marks</Label>
-                <Input
-                  id="passingMarks"
-                  type="number"
-                  min={0}
-                  value={passingMarks}
-                  onChange={(e) =>
-                    setPassingMarks(parseInt(e.target.value) || 0)
-                  }
+                  onChange={(e) => setDurationMinutes(parseInt(e.target.value) || 60)}
                 />
               </div>
             </div>
+
+            {computedEndTime && (
+              <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                <Clock className="size-4 shrink-0" />
+                Test ends at: <span className="font-medium text-foreground">{computedEndTime}</span>
+              </div>
+            )}
 
             <div className="flex items-center gap-3 pt-2">
               <Switch
