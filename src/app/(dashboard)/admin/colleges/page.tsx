@@ -46,7 +46,7 @@ export default async function CollegesListPage() {
         </Button>
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-lg border border-border shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">

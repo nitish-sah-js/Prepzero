@@ -46,6 +46,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Clock, Loader2, Plus, Trash2, BarChart3, Upload, Eye, X, Search, Users, BookOpen, FileUp, Pencil } from "lucide-react";
 import { parseEligibilityCSV } from "@/lib/csv-parser";
+import { fileToCSVText } from "@/lib/spreadsheet";
 
 function toDatetimeLocal(iso: string): string {
   const d = new Date(iso);
@@ -353,7 +354,7 @@ export default function TestDetailPage() {
     setCsvResult(null);
 
     try {
-      const text = await file.text();
+      const text = await fileToCSVText(file);
       const { students: parsedStudents, errors: parseErrors } = parseEligibilityCSV(text);
 
       if (parsedStudents.length === 0) {
@@ -808,10 +809,10 @@ export default function TestDetailPage() {
                 ) : (
                   <Upload className="size-4" />
                 )}
-                {isProcessingCSV ? "Processing..." : "Upload CSV"}
+                {isProcessingCSV ? "Processing..." : "Upload CSV / Excel"}
                 <input
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   className="hidden"
                   onChange={handleCSVUpload}
                   disabled={isProcessingCSV}
@@ -985,7 +986,7 @@ export default function TestDetailPage() {
           </div>
         </div>
 
-        <div className="rounded-md border">
+        <div className="rounded-lg border border-border shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>

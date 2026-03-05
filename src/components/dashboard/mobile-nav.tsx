@@ -65,7 +65,7 @@ export function MobileNav({ role }: { role: string }) {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-64 p-0 bg-sidebar text-sidebar-foreground border-sidebar-border">
-        <div className="flex items-center h-16 px-6 border-b border-sidebar-border">
+        <div className="flex items-center h-14 px-6 border-b border-sidebar-border">
           <Link href="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
             <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary">
               <Zap className="size-4 text-sidebar-primary-foreground" aria-hidden="true" />

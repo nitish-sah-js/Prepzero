@@ -289,7 +289,7 @@ export default function TestMonitorPage() {
       </div>
 
       {/* Student Table */}
-      <div className="rounded-md border">
+      <div className="rounded-lg border border-border shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

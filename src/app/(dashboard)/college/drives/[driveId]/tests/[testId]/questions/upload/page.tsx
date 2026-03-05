@@ -234,7 +234,7 @@ export default function BulkUploadPage() {
           )}
 
           {questions.length > 0 && (
-            <div className="rounded-md border">
+            <div className="rounded-lg border border-border shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>

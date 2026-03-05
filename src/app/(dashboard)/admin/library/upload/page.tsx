@@ -28,6 +28,7 @@ import {
   type LibraryCSVQuestion,
 } from "@/lib/library-csv-parser";
 import type { CSVParseError } from "@/lib/csv-parser";
+import { fileToCSVText } from "@/lib/spreadsheet";
 
 type Phase = "select" | "preview" | "uploading";
 
@@ -59,7 +60,7 @@ export default function LibraryBulkUploadPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const text = await file.text();
+    const text = await fileToCSVText(file);
     const result = parseLibraryQuestionsCSV(text);
     setQuestions(result.questions);
     setErrors(result.errors);
@@ -110,9 +111,9 @@ export default function LibraryBulkUploadPage() {
       {phase === "select" && (
         <Card className="max-w-2xl">
           <CardHeader>
-            <CardTitle>Upload CSV File</CardTitle>
+            <CardTitle>Upload File</CardTitle>
             <CardDescription>
-              Upload a CSV file with your questions. Download the template to see the expected format.
+              Upload a CSV or Excel (.xlsx) file with your questions. Download the template to see the expected format.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -149,10 +150,10 @@ export default function LibraryBulkUploadPage() {
               <Button asChild>
                 <label className="cursor-pointer">
                   <Upload />
-                  Select CSV File
+                  Select File
                   <input
                     type="file"
-                    accept=".csv"
+                    accept=".csv,.xlsx,.xls"
                     className="hidden"
                     onChange={handleFileChange}
                   />
@@ -191,7 +192,7 @@ export default function LibraryBulkUploadPage() {
           )}
 
           {questions.length > 0 && (
-            <div className="rounded-md border">
+            <div className="rounded-lg border border-border shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>

@@ -232,7 +232,7 @@ export default function AdminLibraryPage() {
         </div>
       ) : (
         <>
-          <div className="rounded-md border">
+          <div className="rounded-lg border border-border shadow-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>

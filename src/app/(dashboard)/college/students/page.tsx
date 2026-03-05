@@ -476,7 +476,7 @@ export default function StudentsListPage() {
       )}
 
       {/* Table */}
-      <div className="rounded-md border">
+      <div className="rounded-lg border border-border shadow-sm overflow-hidden">
         {loading ? (
           <div
             className="flex h-24 items-center justify-center gap-2"

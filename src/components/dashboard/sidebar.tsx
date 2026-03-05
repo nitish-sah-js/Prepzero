@@ -71,7 +71,7 @@ export function Sidebar({ role }: { role: string }) {
   const navItems = getNavItems(role);
 
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:top-16 md:bottom-0 md:left-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
+    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:top-14 md:bottom-0 md:left-0 bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       <ScrollArea className="flex-1 py-4">
         <nav className="px-3 space-y-0.5 relative" aria-label="Main navigation">
           {navItems.map((item) => {

@@ -52,79 +52,96 @@ export function Topbar({ user }: TopbarProps) {
 
   const role = roleMeta[user.role] ?? { label: user.role, variant: "secondary" as const };
 
+  const settingsHref =
+    user.role === "SUPER_ADMIN"
+      ? "/admin/settings"
+      : user.role === "COLLEGE_ADMIN"
+        ? "/college/settings"
+        : "/student/settings";
+
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex h-16 items-center gap-3 border-b border-sidebar-border bg-sidebar text-sidebar-foreground px-4 md:px-6">
-      {/* Logo — visible on desktop (mobile shows in sheet) */}
-      <Link href="/" className="hidden md:flex items-center gap-2.5 w-52 shrink-0">
-        <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary">
-          <Zap className="size-4 text-sidebar-primary-foreground" aria-hidden="true" />
+    <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-stretch border-b border-border shadow-sm">
+
+      {/* ── Left: logo zone — dark, matches sidebar ── */}
+      <div className="hidden md:flex items-center w-64 shrink-0 px-5 bg-sidebar border-r border-sidebar-border">
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="flex size-7 items-center justify-center rounded-lg bg-sidebar-primary shadow-sm">
+            <Zap className="size-4 text-sidebar-primary-foreground" aria-hidden="true" />
+          </div>
+          <span className="text-base font-semibold tracking-tight text-sidebar-foreground">
+            PrepZero
+          </span>
+        </Link>
+      </div>
+
+      {/* ── Right: white content zone ── */}
+      <div className="flex flex-1 items-center px-5 gap-3 bg-card">
+        {/* Mobile hamburger */}
+        <MobileNav role={user.role} />
+
+        <div className="flex-1" />
+
+        {/* Controls */}
+        <div className="flex items-center gap-1.5">
+          <ThemeToggle />
+
+          <div className="h-5 w-px bg-border mx-1" />
+
+          {/* User dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="flex items-center gap-2 h-8 px-2.5 rounded-lg hover:bg-muted text-foreground"
+                aria-label="Open user menu"
+              >
+                <Avatar className="size-7">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-[10px] font-bold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="hidden lg:flex flex-col items-start">
+                  <span className="text-sm font-medium leading-none">{user.name.split(" ")[0]}</span>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">{role.label}</span>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={8} className="w-60">
+              <DropdownMenuLabel className="p-0 font-normal">
+                <div className="flex items-center gap-3 px-3 py-2.5">
+                  <Avatar className="size-9 shrink-0">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex flex-col gap-0.5">
+                    <p className="truncate text-sm font-semibold leading-none">{user.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                    <Badge variant={role.variant} className="mt-1 w-fit px-1.5 py-0 text-[10px]">
+                      {role.label}
+                    </Badge>
+                  </div>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href={settingsHref}>
+                  <Settings className="mr-2 size-4" aria-hidden="true" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleSignOut}
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
+                <LogOut className="mr-2 size-4" aria-hidden="true" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <span className="text-lg font-bold tracking-tight">PrepZero</span>
-      </Link>
-
-      {/* Mobile hamburger */}
-      <MobileNav role={user.role} />
-
-      <div className="flex-1" />
-      <ThemeToggle />
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            className="relative size-9 rounded-full"
-            aria-label="Open user menu"
-          >
-            <Avatar className="size-9">
-              <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" sideOffset={8} className="w-64">
-          <DropdownMenuLabel className="p-0 font-normal">
-            <div className="flex items-center gap-3 px-2 py-2">
-              <Avatar className="size-10 shrink-0">
-                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex flex-col gap-1">
-                <p className="truncate text-sm font-medium leading-none">{user.name}</p>
-                <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-                <Badge
-                  variant={role.variant}
-                  className="mt-0.5 w-fit px-1.5 py-0 text-[10px]"
-                >
-                  {role.label}
-                </Badge>
-              </div>
-            </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild className="cursor-pointer">
-            <Link
-              href={
-                user.role === "SUPER_ADMIN"
-                  ? "/admin/settings"
-                  : user.role === "COLLEGE_ADMIN"
-                    ? "/college/settings"
-                    : "/student/settings"
-              }
-            >
-              <Settings className="mr-2 size-4" aria-hidden="true" />
-              Settings
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={handleSignOut}
-            className="cursor-pointer text-destructive focus:text-destructive"
-          >
-            <LogOut className="mr-2 size-4" aria-hidden="true" />
-            Sign out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      </div>
     </header>
   );
 }

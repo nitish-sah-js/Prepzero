@@ -51,7 +51,7 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.969 0.007 265);   /* slate-100 canvas — cards/tables stand out white */
+  --background: oklch(0.957 0.008 265);
   --foreground: oklch(0.175 0.02 265);
   --card: oklch(1 0 0);                   /* pure white */
   --card-foreground: oklch(0.175 0.02 265);
@@ -87,7 +87,7 @@
 }
 
 .light {
-  --background: oklch(0.969 0.007 265);   /* slate-100 canvas */
+  --background: oklch(0.957 0.008 265);
   --card: oklch(1 0 0);                   /* pure white */
   --border: oklch(0.888 0.014 265);       /* slate-200 */
 }

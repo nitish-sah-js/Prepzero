@@ -78,7 +78,7 @@ export default async function UsersListPage({ searchParams }: PageProps) {
         <RoleFilter />
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-lg border border-border shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
