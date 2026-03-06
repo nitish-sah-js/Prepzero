@@ -189,7 +189,7 @@ export default function EditQuestionPage() {
         <CardHeader>
           <CardTitle>Question Details</CardTitle>
           <CardDescription>
-            {isCoding
+            {questionType === "CODING"
               ? "Update the coding challenge and test cases."
               : "Update the question, options, and correct answer(s)."}
           </CardDescription>
